@@ -1,9 +1,9 @@
 import Colors from "@/constants/Colors";
 import {
-    LEAGUES,
     getCurrentUserData,
     getCurrentUserLeague,
-} from "@/constants/mockLeaderboardData";
+    useLeaderboard,
+} from "@/hooks/useLeaderboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
 import {
@@ -20,8 +20,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function LeaderboardScreen() {
-  const userLeague = getCurrentUserLeague();
-  const userData = getCurrentUserData();
+  // 🔥 NEW: Get REAL data from Firestore!
+  const { leagues: LEAGUES, isLoading } = useLeaderboard();
+
+  const userLeague = getCurrentUserLeague(LEAGUES);
+  const userData = getCurrentUserData(LEAGUES);
 
   const [currentIndex, setCurrentIndex] = useState(() => {
     return userLeague ? LEAGUES.findIndex((l) => l.id === userLeague.id) : 2;
