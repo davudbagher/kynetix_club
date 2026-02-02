@@ -1,98 +1,176 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import CircularProgress from "@/components/CircularProgress";
+import StatCard from "@/components/StatCard";
+import WeeklyCalendar from "@/components/WeeklyCalendar";
+import Colors from "@/constants/Colors";
+import { usePedometer } from "@/hooks/usePedometer";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  // Get REAL steps from device pedometer
+  const { todaySteps, isPedometerAvailable } = usePedometer();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  // User settings
+  const dailyGoal = 10000;
+  const userName = "Davud";
+
+  // Calculate derived stats
+  const kmWalked = (todaySteps * 0.0008).toFixed(1); // ~0.8m per step
+  const treesPlanted = Math.floor(todaySteps / 10000); // 1 tree per 10K steps
+  const caloriesBurned = Math.floor(todaySteps * 0.04); // ~0.04 cal per step
+
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.userName}>{userName}! 👋</Text>
+          </View>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>K</Text>
+          </View>
+        </View>
+
+        {/* Weekly Calendar */}
+        <WeeklyCalendar />
+
+        {/* Main Progress Circle */}
+        <View style={styles.progressSection}>
+          <Text style={styles.sectionTitle}>Today's Progress</Text>
+          <View style={styles.progressContainer}>
+            <CircularProgress currentSteps={todaySteps} goalSteps={dailyGoal} />
+          </View>
+        </View>
+
+        {/* Stat Cards Row */}
+        <View style={styles.statsRow}>
+          <StatCard icon="📏" value={kmWalked} label="km" />
+          <StatCard icon="🌳" value={treesPlanted.toString()} label="trees" />
+          <StatCard icon="🔥" value={caloriesBurned.toString()} label="kcal" />
+        </View>
+
+        {/* Weekly Summary */}
+        <View style={styles.weeklySection}>
+          <View style={styles.weeklySummaryHeader}>
+            <Text style={styles.weeklySummaryTitle}>This Week</Text>
+            <Text style={styles.weeklySummarySubtitle}>Keep pushing! 💪</Text>
+          </View>
+          {/* Chart will go here - for now show placeholder */}
+          <View style={styles.chartPlaceholder}>
+            <Text style={styles.chartPlaceholderText}>
+              📊 Weekly chart coming next!
+            </Text>
+          </View>
+        </View>
+
+        {/* Bottom spacing for tab bar */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: Colors.darkGrey,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  scrollView: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  greeting: {
+    fontSize: 14,
+    color: Colors.lightGrey,
+    marginBottom: 4,
+  },
+  userName: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: Colors.white,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.neonLime,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Colors.black,
+  },
+  progressSection: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.white,
+    marginBottom: 24,
+  },
+  progressContainer: {
+    alignItems: "center",
+  },
+  statsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    marginBottom: 32,
+  },
+  weeklySection: {
+    paddingHorizontal: 20,
+  },
+  weeklySummaryHeader: {
+    marginBottom: 16,
+  },
+  weeklySummaryTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.white,
+    marginBottom: 4,
+  },
+  weeklySummarySubtitle: {
+    fontSize: 14,
+    color: Colors.lightGrey,
+  },
+  chartPlaceholder: {
+    backgroundColor: Colors.black,
+    borderRadius: 16,
+    padding: 32,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.cardGrey,
+  },
+  chartPlaceholderText: {
+    fontSize: 14,
+    color: Colors.lightGrey,
   },
 });

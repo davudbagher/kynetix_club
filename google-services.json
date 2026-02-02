@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "244866440234",
+    "project_id": "kynetix-club",
+    "storage_bucket": "kynetix-club.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:244866440234:android:4ca30dab81c9e043a37753",
+        "android_client_info": {
+          "package_name": "com.kynetixclub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLSIxMUkDJ7akCMOdIb1u1fXSuAKfWQAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
