@@ -1,8 +1,13 @@
 import CircularProgress from "@/components/CircularProgress";
 import StatCard from "@/components/StatCard";
+import WeeklyBarChart from "@/components/WeeklyBarChart";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
+import { auth, db } from "@/config/firebase";
 import Colors from "@/constants/Colors";
 import { usePedometer } from "@/hooks/usePedometer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { doc, getDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -10,13 +15,45 @@ export default function HomeScreen() {
   // Get REAL steps from device pedometer
   const { todaySteps, isPedometerAvailable } = usePedometer();
 
+  // 📊 State for step history (for weekly chart)
+  const [stepHistory, setStepHistory] = useState<any[]>([]);
+
+  // 📊 Load step history from Firestore
+  useEffect(() => {
+    const loadStepHistory = async () => {
+      try {
+        // Get current user ID
+        const savedUserId = await AsyncStorage.getItem("kynetix_user_id");
+        const userId = savedUserId || auth.currentUser?.uid;
+
+        if (userId) {
+          // Load user document from Firestore
+          const userDoc = await getDoc(doc(db, "users", userId));
+          const userData = userDoc.data();
+
+          // Set step history (empty array if none exists yet)
+          setStepHistory(userData?.stepHistory || []);
+
+          console.log(
+            `📊 Loaded ${userData?.stepHistory?.length || 0} days of step history`,
+          );
+        }
+      } catch (error) {
+        console.error("❌ Error loading step history:", error);
+        setStepHistory([]); // Set empty on error
+      }
+    };
+
+    loadStepHistory();
+  }, []); // Load once when screen mounts
+
   // User settings
   const dailyGoal = 10000;
   const userName = "Davud";
 
   // Calculate derived stats
   const kmWalked = (todaySteps * 0.0008).toFixed(1); // ~0.8m per step
-  const treesPlanted = Math.floor(todaySteps / 10000); // 1 tree per 10K steps
+  const treesPlanted = Math.floor(todaySteps / 280); // 1 tree per 280 steps
   const caloriesBurned = Math.floor(todaySteps * 0.04); // ~0.04 cal per step
 
   // Get greeting based on time
@@ -46,7 +83,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Weekly Calendar */}
-        <WeeklyCalendar />
+        <WeeklyCalendar {...({ stepHistory } as any)} />
 
         {/* Main Progress Circle */}
         <View style={styles.progressSection}>
@@ -69,12 +106,8 @@ export default function HomeScreen() {
             <Text style={styles.weeklySummaryTitle}>This Week</Text>
             <Text style={styles.weeklySummarySubtitle}>Keep pushing! 💪</Text>
           </View>
-          {/* Chart will go here - for now show placeholder */}
-          <View style={styles.chartPlaceholder}>
-            <Text style={styles.chartPlaceholderText}>
-              📊 Weekly chart coming next!
-            </Text>
-          </View>
+          {/* Weekly Bar Chart */}
+          <WeeklyBarChart stepHistory={stepHistory} goalSteps={10000} />
         </View>
 
         {/* Bottom spacing for tab bar */}

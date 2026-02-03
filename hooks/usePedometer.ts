@@ -1,4 +1,5 @@
 import { auth, db } from "@/config/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pedometer } from "expo-sensors";
 import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -79,19 +80,20 @@ export function usePedometer() {
     };
   }, []);
 
-  // 🔥 Auto-save steps to Firestore every 30 seconds (TRACKS ALL THREE NUMBERS!)
+  // 🔥 Auto-save steps to Firestore every 30 minutes (TRACKS ALL THREE NUMBERS!)
   useEffect(() => {
     const saveStepsToFirestore = async () => {
       try {
         // Get current user ID
-        const userId = auth.currentUser?.uid;
+        const savedUserId = await AsyncStorage.getItem("kynetix_user_id");
+        const userId = savedUserId || auth.currentUser?.uid;
         if (!userId) {
           console.log("⚠️ No user logged in, skipping step save");
           return;
         }
 
         // Get current date and month
-        const today = new Date().toISOString().split("T")[0]; // "2026-02-02"
+        const today = new Date().toISOString().split("T")[0]; // "2026-02-03"
         const currentLeague = new Date().toLocaleString("en-US", {
           month: "long",
           year: "numeric",
@@ -181,6 +183,45 @@ export function usePedometer() {
 
           console.log(`✅ Updated: ${deviceStepsToday} steps today`);
         }
+
+        // 📊 UPDATE DAILY HISTORY (for weekly calendar!)
+        // Get existing history or initialize empty array
+        const stepHistory = userData?.stepHistory || [];
+
+        // Check if today's entry exists
+        const todayIndex = stepHistory.findIndex(
+          (entry: any) => entry.date === today,
+        );
+
+        if (todayIndex >= 0) {
+          // Update today's steps
+          stepHistory[todayIndex] = {
+            date: today,
+            steps: deviceStepsToday,
+            goalReached: deviceStepsToday >= 10000,
+          };
+        } else {
+          // Add new entry for today
+          stepHistory.push({
+            date: today,
+            steps: deviceStepsToday,
+            goalReached: deviceStepsToday >= 10000,
+          });
+        }
+
+        // Keep only last 30 days (for performance & cost optimization)
+        const sortedHistory = stepHistory
+          .sort((a: any, b: any) => b.date.localeCompare(a.date))
+          .slice(0, 30);
+
+        // Save updated history
+        await updateDoc(doc(db, "users", userId), {
+          stepHistory: sortedHistory,
+        });
+
+        console.log(
+          `📊 Updated step history: ${today} → ${deviceStepsToday} steps (Goal: ${deviceStepsToday >= 10000 ? "✅" : "❌"})`,
+        );
       } catch (error) {
         console.error("❌ Error saving steps to Firestore:", error);
       }
