@@ -6,33 +6,48 @@
  */
 
 export const Colors = {
-  // Brand Colors (from your design)
-  neonLime: "#CFFF04", // Primary accent - neon lime green
+  // Brand Colors (Primary Accent)
+  neonLime: "#C6FF00", // Primary accent - neon lime green
   lightLime: "#E5FF80", // Lighter lime for subtle accents
+  limeShadow: "rgba(198, 255, 0, 0.15)", // Subtle lime glow
 
-  // Backgrounds
-  black: "#000000", // Pure black for cards and nav
-  darkGrey: "#1A1A1A", // Slightly lighter black for main bg
-  cardGrey: "#2A2A2A", // Card backgrounds
+  // Light Theme Backgrounds
+  background: "#FFFFFF", // Main background - pure white
+  cardBackground: "#F5F5F7", // Light grey cards
+  white: "#FFFFFF", // White surfaces
 
-  // Text Colors
-  white: "#FFFFFF", // Primary text
-  lightGrey: "#A0A0A0", // Secondary text
-  midGrey: "#6B6B6B", // Tertiary text
+  // Light Theme Text Colors
+  textPrimary: "#1C1C1E", // Dark charcoal for headings/primary text
+  textSecondary: "#8E8E93", // Medium grey for secondary text
+  textTertiary: "#C7C7CC", // Light grey for tertiary text
+
+  // Borders & Dividers
+  border: "#E5E5EA", // Light grey borders
+  divider: "#E5E5EA", // Dividers
+
+  // Shadows
+  shadow: "rgba(0, 0, 0, 0.08)", // Subtle shadow for cards
 
   // Functional Colors
-  success: "#4ADE80", // Green for achievements
-  warning: "#FFA500", // Orange for warnings
-  error: "#FF4444", // Red for errors
+  success: "#34C759", // Green for achievements
+  warning: "#FF9500", // Orange for warnings
+  error: "#FF3B30", // Red for errors
 
-  // Progress Ring Colors
-  progressTrack: "#2A2A2A", // Background track
-  progressFill: "#CFFF04", // Neon lime progress fill
+  // Progress Ring Colors (Light Theme)
+  progressTrack: "#E5E5EA", // Light grey track
+  progressFill: "#C6FF00", // Neon lime progress fill
 
-  // Chart Colors
-  chartActive: "#CFFF04", // Active day (neon lime)
-  chartInactive: "#3A3A3A", // Inactive day
-  chartToday: "#E5FF80", // Today (lighter lime)
+  // Chart Colors (Light Theme)
+  chartActive: "#C6FF00", // Active day (neon lime)
+  chartInactive: "#E5E5EA", // Inactive day (light grey)
+  chartToday: "#C6FF00", // Today (neon lime)
+
+  // Legacy (for backwards compatibility - will remove later)
+  black: "#000000",
+  darkGrey: "#1C1C1E",
+  cardGrey: "#F5F5F7",
+  lightGrey: "#8E8E93",
+  midGrey: "#C7C7CC",
 };
 
 export default Colors;

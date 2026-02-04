@@ -1,19 +1,19 @@
 import Colors from "@/constants/Colors";
 import {
-    getCurrentUserData,
-    getCurrentUserLeague,
-    useLeaderboard,
+  getCurrentUserData,
+  getCurrentUserLeague,
+  useLeaderboard,
 } from "@/hooks/useLeaderboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 

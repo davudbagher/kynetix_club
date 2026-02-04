@@ -11,57 +11,66 @@ interface CircularProgressProps {
 export default function CircularProgress({
   currentSteps,
   goalSteps,
-  size = 240,
+  size = 220,
 }: CircularProgressProps) {
   // Calculate progress percentage
   const progress = Math.min((currentSteps / goalSteps) * 100, 100);
 
   // Circle dimensions
-  const strokeWidth = 16;
+  const strokeWidth = 18;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progressOffset = circumference - (progress / 100) * circumference;
 
+  // Motivational message based on progress
+  const getMotivationalMessage = () => {
+    if (progress >= 100) return "Goal reached! 🎉";
+    if (progress >= 75) return "Keep it up! 💪";
+    if (progress >= 50) return "Halfway there! ⚡";
+    if (progress >= 25) return "Great start! 🚀";
+    return "Let's go! 👟";
+  };
+
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      {/* SVG Progress Ring */}
-      <Svg width={size} height={size} style={styles.svg}>
-        {/* Background circle (track) */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={Colors.progressTrack}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
+    <View style={styles.container}>
+      <View style={[styles.progressContainer, { width: size, height: size }]}>
+        {/* SVG Progress Ring */}
+        <Svg width={size} height={size} style={styles.svg}>
+          {/* Background circle (track) */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={Colors.progressTrack}
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
 
-        {/* Progress circle (fill) */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={Colors.progressFill}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={progressOffset}
-          strokeLinecap="round"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
+          {/* Progress circle (fill) */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={Colors.progressFill}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={progressOffset}
+            strokeLinecap="round"
+            rotation="-90"
+            origin={`${size / 2}, ${size / 2}`}
+          />
+        </Svg>
 
-      {/* Center content */}
-      <View style={styles.centerContent}>
-        <Text style={styles.stepCount}>{currentSteps.toLocaleString()}</Text>
-        <Text style={styles.stepLabel}>steps</Text>
-        <View style={styles.goalContainer}>
-          <Text style={styles.goalText}>
-            Goal: {goalSteps.toLocaleString()}
-          </Text>
+        {/* Center content */}
+        <View style={styles.centerContent}>
+          <Text style={styles.stepCount}>{currentSteps.toLocaleString()}</Text>
+          <Text style={styles.goalText}>/{goalSteps.toLocaleString()} steps</Text>
         </View>
       </View>
+
+      {/* Motivational message below circle */}
+      <Text style={styles.motivationalText}>{getMotivationalMessage()}</Text>
     </View>
   );
 }
@@ -69,7 +78,16 @@ export default function CircularProgress({
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
+  },
+  progressContainer: {
+    alignItems: "center",
     justifyContent: "center",
+    // Subtle shadow for depth
+    shadowColor: Colors.neonLime,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   svg: {
     position: "absolute",
@@ -79,26 +97,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepCount: {
-    fontSize: 56,
+    fontSize: 52,
     fontWeight: "bold",
-    color: Colors.white,
+    color: Colors.textPrimary,
     letterSpacing: -2,
   },
-  stepLabel: {
-    fontSize: 16,
-    color: Colors.lightGrey,
-    marginTop: 4,
-  },
-  goalContainer: {
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.cardGrey,
-    borderRadius: 12,
-  },
   goalText: {
-    fontSize: 12,
-    color: Colors.neonLime,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  motivationalText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginTop: 20,
     fontWeight: "600",
   },
 });

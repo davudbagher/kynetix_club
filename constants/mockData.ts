@@ -299,3 +299,31 @@ export const generateRedemptionCode = (): string => {
   }
   return code;
 };
+
+// ============================================
+// CATEGORIES DATA
+// ============================================
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  type: "food" | "fitness" | "shopping" | "entertainment";
+}
+
+export const CATEGORIES: Category[] = [
+  { id: "restaurants", name: "Restaurants", icon: "🍽️", type: "food" },
+  { id: "cafes", name: "Cafes", icon: "☕", type: "food" },
+  { id: "gyms", name: "Gyms", icon: "💪", type: "fitness" },
+  { id: "spa", name: "Spa", icon: "💆", type: "entertainment" },
+  { id: "shopping", name: "Shopping", icon: "🛍️", type: "shopping" },
+  { id: "travel", name: "Travel", icon: "✈️", type: "entertainment" },
+];
+
+// Helper function to format step count (12000 -> "12k")
+export const formatStepCount = (steps: number): string => {
+  if (steps >= 1000) {
+    return `${(steps / 1000).toFixed(0)}k`;
+  }
+  return steps.toString();
+};

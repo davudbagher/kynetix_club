@@ -1,10 +1,10 @@
 import CircularProgress from "@/components/CircularProgress";
 import StatCard from "@/components/StatCard";
 import WeeklyBarChart from "@/components/WeeklyBarChart";
-import WeeklyCalendar from "@/components/WeeklyCalendar";
 import { auth, db } from "@/config/firebase";
 import Colors from "@/constants/Colors";
 import { usePedometer } from "@/hooks/usePedometer";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -75,36 +75,39 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{userName}! 👋</Text>
-          </View>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>K</Text>
+            <Text style={styles.userName}>{userName}</Text>
           </View>
         </View>
 
-        {/* Weekly Calendar */}
-        <WeeklyCalendar {...({ stepHistory } as any)} />
-
         {/* Main Progress Circle */}
         <View style={styles.progressSection}>
-          <Text style={styles.sectionTitle}>Today's Progress</Text>
-          <View style={styles.progressContainer}>
-            <CircularProgress currentSteps={todaySteps} goalSteps={dailyGoal} />
-          </View>
+          <CircularProgress currentSteps={todaySteps} goalSteps={dailyGoal} />
         </View>
 
         {/* Stat Cards Row */}
         <View style={styles.statsRow}>
-          <StatCard icon="📏" value={kmWalked} label="km" />
-          <StatCard icon="🌳" value={treesPlanted.toString()} label="trees" />
-          <StatCard icon="🔥" value={caloriesBurned.toString()} label="kcal" />
+          <StatCard
+            icon={<Ionicons name="map-outline" size={24} color="#333" />}
+            value={kmWalked}
+            label="km"
+          />
+          <StatCard
+            icon={<MaterialCommunityIcons name="leaf" size={24} color="#333" />}
+            value={treesPlanted.toString()}
+            label="trees"
+          />
+          <StatCard
+            icon={<Ionicons name="flame" size={24} color="#333" />}
+            value={caloriesBurned.toString()}
+            label="kcal"
+          />
         </View>
 
         {/* Weekly Summary */}
         <View style={styles.weeklySection}>
           <View style={styles.weeklySummaryHeader}>
             <Text style={styles.weeklySummaryTitle}>This Week</Text>
-            <Text style={styles.weeklySummarySubtitle}>Keep pushing! 💪</Text>
+            <Text style={styles.weeklySummarySubtitle}>Your activity</Text>
           </View>
           {/* Weekly Bar Chart */}
           <WeeklyBarChart stepHistory={stepHistory} goalSteps={10000} />
@@ -120,7 +123,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.darkGrey,
+    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -132,67 +135,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   greeting: {
     fontSize: 14,
-    color: Colors.lightGrey,
+    color: Colors.textSecondary,
     marginBottom: 4,
+    fontWeight: "500",
   },
   userName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
-    color: Colors.white,
-  },
-  logoContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.neonLime,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Colors.black,
+    color: Colors.textPrimary,
   },
   progressSection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: Colors.white,
-    marginBottom: 24,
-  },
-  progressContainer: {
     alignItems: "center",
   },
   statsRow: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    marginBottom: 32,
+    paddingHorizontal: 20,
+    marginBottom: 36,
   },
   weeklySection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   weeklySummaryHeader: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   weeklySummaryTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: Colors.white,
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   weeklySummarySubtitle: {
     fontSize: 14,
-    color: Colors.lightGrey,
+    color: Colors.textSecondary,
+    fontWeight: "500",
   },
   chartPlaceholder: {
     backgroundColor: Colors.black,

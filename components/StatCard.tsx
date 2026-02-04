@@ -2,7 +2,7 @@ import Colors from "@/constants/Colors";
 import { StyleSheet, Text, View } from "react-native";
 
 interface StatCardProps {
-  icon: string;
+  icon: React.ReactNode;
   value: string;
   label: string;
 }
@@ -10,9 +10,10 @@ interface StatCardProps {
 export default function StatCard({ icon, value, label }: StatCardProps) {
   return (
     <View style={styles.card}>
-      <Text style={styles.icon}>{icon}</Text>
-      <Text style={styles.value}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>
+        {value} <Text style={styles.label}>{label}</Text>
+      </Text>
+      <View style={styles.iconContainer}>{icon}</View>
     </View>
   );
 }
@@ -20,28 +21,33 @@ export default function StatCard({ icon, value, label }: StatCardProps) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.cardBackground,
     borderRadius: 16,
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: Colors.cardGrey,
-  },
-  icon: {
-    fontSize: 28,
-    marginBottom: 8,
+    // Subtle shadow
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   value: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "bold",
-    color: Colors.white,
-    marginBottom: 4,
+    color: Colors.textPrimary,
   },
   label: {
-    fontSize: 11,
-    color: Colors.lightGrey,
-    textAlign: "center",
+    fontSize: 13,
+    fontWeight: "500",
+    color: Colors.textSecondary,
+  },
+  iconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

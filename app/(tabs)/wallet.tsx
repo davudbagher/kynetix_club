@@ -4,14 +4,17 @@ import {
   getTrendingOffers,
   Offer,
   Partner,
-  PARTNERS,
+  PARTNERS
 } from "@/constants/mockData";
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Dimensions,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -21,11 +24,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const { width: screenWidth } = Dimensions.get("window");
+const cardWidth = screenWidth - 48; // 24px padding on each side
+
 export default function WalletScreen() {
   // State for wallet balance (loaded from Firebase!)
   const [totalEarned, setTotalEarned] = useState(0);
   const [availableToSpend, setAvailableToSpend] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Refs for scrolling and animation
+  const scrollViewRef = useRef<ScrollView>(null);
+  const partnersRef = useRef<View>(null);
+  const flipAnimation = useRef(new Animated.Value(0)).current;
 
   // Load wallet balance from Firebase (like Profile does!)
   useEffect(() => {
@@ -76,9 +88,38 @@ export default function WalletScreen() {
   // Get trending offers
   const trendingOffers = getTrendingOffers();
 
+  // Flip animation handler
+  const handleFlip = () => {
+    Animated.spring(flipAnimation, {
+      toValue: isFlipped ? 0 : 180,
+      friction: 8,
+      tension: 10,
+      useNativeDriver: true,
+    }).start();
+    setIsFlipped(!isFlipped);
+  };
+
+  // Interpolate rotation values
+  const frontInterpolate = flipAnimation.interpolate({
+    inputRange: [0, 180],
+    outputRange: ["0deg", "180deg"],
+  });
+  const backInterpolate = flipAnimation.interpolate({
+    inputRange: [0, 180],
+    outputRange: ["180deg", "360deg"],
+  });
+
+  const frontAnimatedStyle = {
+    transform: [{ rotateY: frontInterpolate }],
+  };
+  const backAnimatedStyle = {
+    transform: [{ rotateY: backInterpolate }],
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -89,48 +130,113 @@ export default function WalletScreen() {
           <Text style={styles.subtitle}>Your step rewards</Text>
         </View>
 
-        {/* Balance Card - MINIMALIST DESIGN */}
-        <View style={styles.balanceCard}>
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.neonLime} />
-            </View>
-          ) : (
-            <>
-              {/* Two-Column Balance */}
-              <View style={styles.balanceRow}>
-                {/* Total Earned */}
-                <View style={styles.balanceColumn}>
-                  <Text style={styles.balanceIcon}>🏃</Text>
-                  <Text style={styles.balanceLabel}>Total Earned</Text>
-                  <Text style={styles.balanceValue}>
-                    {totalEarned.toLocaleString()}
-                  </Text>
-                </View>
-
-                {/* Available - HIGHLIGHTED */}
-                <View
-                  style={[styles.balanceColumn, styles.balanceColumnHighlight]}
-                >
-                  <Text style={styles.balanceIcon}>💰</Text>
-                  <Text style={styles.balanceLabelHighlight}>Available</Text>
-                  <Text style={styles.balanceValueHighlight}>
-                    {availableToSpend.toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Walk More Button */}
-              <TouchableOpacity
-                style={styles.walkMoreButton}
-                onPress={() => router.push("/")}
-                activeOpacity={0.8}
+        {/* Balance Card - Flippable */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.neonLime} />
+          </View>
+        ) : (
+          <View style={styles.cardFlipContainer}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={handleFlip}
+              style={styles.cardTouchable}
+            >
+              {/* Front - Available Balance */}
+              <Animated.View
+                style={[
+                  styles.debitCard,
+                  styles.debitCardPrimary,
+                  frontAnimatedStyle,
+                  styles.cardFace,
+                ]}
               >
-                <Text style={styles.walkMoreText}>Walk more to earn</Text>
-                <Text style={styles.walkMoreIcon}>→</Text>
-              </TouchableOpacity>
-            </>
-          )}
+                <View style={styles.cardTopSection}>
+                  <Text style={styles.cardLabelPrimary}>AVAILABLE</Text>
+                  <Ionicons name="sparkles" size={24} color="rgba(0, 0, 0, 0.6)" />
+                </View>
+                <Text style={styles.cardBalancePrimary}>
+                  {availableToSpend.toLocaleString()}
+                </Text>
+                <Text style={styles.cardBalanceLabelPrimary}>
+                  steps to spend
+                </Text>
+                <View style={styles.cardBottomSection}>
+                  <Text style={styles.cardHolderNamePrimary}>Ready to Use</Text>
+                  <Ionicons name="wallet" size={24} color="rgba(0, 0, 0, 0.6)" />
+                </View>
+                {/* Flip indicator */}
+                <View style={styles.flipIndicator}>
+                  <MaterialIcons name="flip" size={16} color="rgba(0, 0, 0, 0.4)" />
+                </View>
+              </Animated.View>
+
+              {/* Back - Total Earned */}
+              <Animated.View
+                style={[
+                  styles.debitCard,
+                  backAnimatedStyle,
+                  styles.cardFace,
+                  styles.cardBack,
+                ]}
+              >
+                <View style={styles.cardTopSection}>
+                  <Text style={styles.cardLabel}>TOTAL EARNED</Text>
+                  <MaterialCommunityIcons name="diamond-stone" size={24} color={Colors.lightGrey} />
+                </View>
+                <Text style={styles.cardBalance}>
+                  {totalEarned.toLocaleString()}
+                </Text>
+                <Text style={styles.cardBalanceLabel}>steps</Text>
+                <View style={styles.cardBottomSection}>
+                  <Text style={styles.cardHolderName}>Kynetix Member</Text>
+                  <Ionicons name="footsteps" size={24} color={Colors.lightGrey} />
+                </View>
+                {/* Flip indicator */}
+                <View style={styles.flipIndicator}>
+                  <MaterialIcons name="flip" size={16} color="rgba(255, 255, 255, 0.4)" />
+                </View>
+              </Animated.View>
+            </TouchableOpacity>
+
+            {/* Tap to flip hint */}
+            <Text style={styles.flipHint}>Tap card to flip</Text>
+          </View>
+        )}
+
+        {/* Quick Actions - Banking Style */}
+        <View style={styles.quickActionsContainer}>
+          <TouchableOpacity
+            style={styles.primaryActionButton}
+            onPress={() => router.push("/")}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="walk" size={18} color={Colors.black} />
+            <Text style={styles.primaryActionText}>Walk More</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryActionButton}
+            activeOpacity={0.8}
+            onPress={() => {
+              partnersRef.current?.measureLayout(
+                scrollViewRef.current as any,
+                (x, y) => {
+                  scrollViewRef.current?.scrollTo({ y: y - 100, animated: true });
+                }
+              );
+            }}
+          >
+            <Ionicons name="gift" size={18} color={Colors.textPrimary} />
+            <Text style={styles.secondaryActionText}>Redeem</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconOnlyButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="receipt" size={22} color={Colors.textPrimary} />
+          </TouchableOpacity>
         </View>
 
         {/* Trending Section */}
@@ -166,7 +272,7 @@ export default function WalletScreen() {
         )}
 
         {/* All Partners Section */}
-        <View style={styles.section}>
+        <View style={styles.section} ref={partnersRef}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>All Partners</Text>
             <Text style={styles.partnerCount}>{PARTNERS.length} in Baku</Text>
@@ -310,81 +416,178 @@ const styles = StyleSheet.create({
     color: Colors.lightGrey,
   },
 
-  // Balance Card - MINIMALIST
-  balanceCard: {
-    marginHorizontal: 24,
+  // Balance Card - Flippable
+  cardFlipContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 8,
+  },
+  cardTouchable: {
+    height: 200,
+  },
+  cardFace: {
+    backfaceVisibility: "hidden",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  cardBack: {
+    top: 0,
+  },
+  flipHint: {
+    textAlign: "center",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  debitCard: {
+    backgroundColor: "#1a1a1a",
+    borderRadius: 20,
+    padding: 24,
+    minHeight: 200,
+    justifyContent: "space-between",
+  },
+  debitCardPrimary: {
     backgroundColor: Colors.neonLime,
-    borderRadius: 28,
-    padding: 28,
-    marginBottom: 36,
-    // No border! Clean look
   },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-  balanceRow: {
+  cardTopSection: {
     flexDirection: "row",
-    gap: 16,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 24,
   },
-  balanceColumn: {
-    flex: 1,
+  cardLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.lightGrey,
+    letterSpacing: 1.5,
+  },
+  cardLabelPrimary: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(0, 0, 0, 0.6)",
+    letterSpacing: 1.5,
+  },
+  cardChip: {
+    fontSize: 28,
+  },
+  cardBalance: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: Colors.white,
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
+  cardBalancePrimary: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: Colors.black,
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
+  cardBalanceLabel: {
+    fontSize: 14,
+    color: Colors.lightGrey,
+    marginBottom: 20,
+  },
+  cardBalanceLabelPrimary: {
+    fontSize: 14,
+    color: "rgba(0, 0, 0, 0.6)",
+    marginBottom: 20,
+  },
+  cardBottomSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  balanceColumnHighlight: {
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
-    borderRadius: 20,
-    paddingVertical: 16,
-  },
-  balanceIcon: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  balanceLabel: {
-    fontSize: 11,
-    color: "rgba(0, 0, 0, 0.5)",
-    textTransform: "uppercase",
+  cardHolderName: {
+    fontSize: 12,
     fontWeight: "600",
+    color: Colors.lightGrey,
+    textTransform: "uppercase",
     letterSpacing: 1,
-    marginBottom: 8,
   },
-  balanceLabelHighlight: {
-    fontSize: 11,
+  cardHolderNamePrimary: {
+    fontSize: 12,
+    fontWeight: "600",
     color: "rgba(0, 0, 0, 0.6)",
     textTransform: "uppercase",
-    fontWeight: "600",
     letterSpacing: 1,
-    marginBottom: 8,
   },
-  balanceValue: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: Colors.black,
+  cardBrand: {
+    fontSize: 24,
   },
-  balanceValueHighlight: {
-    fontSize: 38,
-    fontWeight: "bold",
-    color: Colors.black,
+  flipIndicator: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    opacity: 0.6,
   },
-  walkMoreButton: {
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: "center",
+  },
+
+  // Quick Actions - Banking Style
+  quickActionsContainer: {
     flexDirection: "row",
-    backgroundColor: Colors.black,
-    paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 20,
+    gap: 12,
+    marginBottom: 32,
+  },
+  primaryActionButton: {
+    flex: 1,
+    backgroundColor: Colors.neonLime,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
-  walkMoreText: {
-    fontSize: 15,
-    color: Colors.neonLime,
-    fontWeight: "600",
-  },
-  walkMoreIcon: {
+  primaryActionIcon: {
     fontSize: 18,
-    color: Colors.neonLime,
+  },
+  primaryActionText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.black,
+  },
+  secondaryActionButton: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  secondaryActionIcon: {
+    fontSize: 18,
+  },
+  secondaryActionText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  iconOnlyButton: {
+    width: 52,
+    height: 52,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  iconOnlyButtonIcon: {
+    fontSize: 22,
   },
 
   // Section Headers
