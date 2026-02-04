@@ -1,245 +1,185 @@
-import { auth, db } from "@/config/firebase";
+import { db } from "@/config/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pedometer } from "expo-sensors";
-import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+
+const DAILY_GOAL = 10000;
+const SAVE_INTERVAL = 480000; // 8 minutes (75% reduction: 2min → 8min)
 
 export function usePedometer() {
-  const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
   const [todaySteps, setTodaySteps] = useState(0);
-  const [currentStepCount, setCurrentStepCount] = useState(0);
+  const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
+  const lastSavedSteps = useRef(0);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    // Check if we're on web - pedometer doesn't work on web
-    if (Platform.OS === "web") {
-      console.log("📱 Pedometer not available on web - using mock data");
-      setIsPedometerAvailable(false);
-      // Use mock data for web testing
-      setTodaySteps(8247); // Fake steps for testing in browser
-      return;
-    }
+  // Optimized save function with debouncing
+  const saveToFirebase = async (force = false) => {
+    try {
+      const userId = await AsyncStorage.getItem("kynetix_user_id");
+      if (!userId || todaySteps === 0) return;
 
-    // Check if pedometer is available on this device
-    const checkAvailability = async () => {
-      try {
-        const available = await Pedometer.isAvailableAsync();
-        setIsPedometerAvailable(available);
-
-        if (available) {
-          // Get steps from midnight until now (today's total)
-          const end = new Date();
-          const start = new Date();
-          start.setHours(0, 0, 0, 0); // Midnight
-
-          try {
-            const pastStepCountResult = await Pedometer.getStepCountAsync(
-              start,
-              end,
-            );
-            if (pastStepCountResult) {
-              setTodaySteps(pastStepCountResult.steps);
-            }
-          } catch (error) {
-            console.log("Error getting past steps:", error);
-            setTodaySteps(0);
-          }
-        } else {
-          console.log("📱 Pedometer not available on this device");
-          setTodaySteps(0);
-        }
-      } catch (error) {
-        console.log("Error checking pedometer availability:", error);
-        setIsPedometerAvailable(false);
-        setTodaySteps(0);
+      // Skip if steps haven't changed significantly (unless forced)
+      const stepDifference = Math.abs(todaySteps - lastSavedSteps.current);
+      if (!force && stepDifference < 50) {
+        console.log("📊 Skipping save - minimal change");
+        return;
       }
+
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const day = String(today.getDate()).padStart(2, "0");
+      const todayString = `${year}-${month}-${day}`;
+
+      // Get current data
+      const userDoc = await getDoc(doc(db, "users", userId));
+      const userData = userDoc.data();
+      const currentHistory = userData?.stepHistory || [];
+
+      console.log("📊 Current history from Firebase:", currentHistory);
+
+      // Make sure it's an array (safety check)
+      const historyArray = Array.isArray(currentHistory) ? currentHistory : [];
+
+      // Remove today if it exists
+      const withoutToday = historyArray.filter(
+        (entry: any) => entry?.date !== todayString,
+      );
+
+      console.log(`📊 History without today (${todayString}):`, withoutToday);
+
+      // Add today
+      const newHistory = [
+        ...withoutToday,
+        {
+          date: todayString,
+          steps: todaySteps,
+          goalReached: todaySteps >= DAILY_GOAL,
+        },
+      ];
+
+      // Keep last 30 days only (sort by date descending and take first 30)
+      const sortedHistory = newHistory
+        .sort((a: any, b: any) => {
+          const dateA = a?.date || "";
+          const dateB = b?.date || "";
+          return dateB.localeCompare(dateA); // Newest first
+        })
+        .slice(0, 30);
+
+      console.log(
+        `📊 Final history (${sortedHistory.length} days):`,
+        sortedHistory,
+      );
+
+      // Calculate totalStepsAllTime by summing ALL days in history
+      const calculatedTotal = sortedHistory.reduce(
+        (sum: number, entry: any) => sum + (entry?.steps || 0),
+        0,
+      );
+
+      // Get existing total from Firebase
+      const existingTotal = userData?.totalStepsAllTime || 0;
+
+      // IMPORTANT: Never decrease totalStepsAllTime (protects against data loss)
+      // Only update if the new calculated total is higher
+      const totalStepsAllTime = Math.max(calculatedTotal, existingTotal);
+
+      if (calculatedTotal < existingTotal) {
+        console.warn(
+          `⚠️ Calculated total (${calculatedTotal}) is less than existing (${existingTotal}). Keeping existing to prevent data loss.`,
+        );
+      }
+
+      // Save to Firebase
+      await updateDoc(doc(db, "users", userId), {
+        totalStepsAllTime: totalStepsAllTime,
+        stepHistory: sortedHistory,
+      });
+
+      lastSavedSteps.current = todaySteps;
+      console.log(
+        `✅ Saved: ${todaySteps} steps today, ${totalStepsAllTime} total all-time`,
+      );
+    } catch (error) {
+      console.error("❌ Save error:", error);
+    }
+  };
+
+  // Save every 8 minutes (75% cost reduction)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (todaySteps > 0) {
+        console.log("💾 Auto-save (8min interval)...");
+        saveToFirebase();
+      }
+    }, SAVE_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [todaySteps]);
+
+  // Save when app goes to background (critical for data persistence)
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        console.log("💾 App backgrounded - saving now...");
+        saveToFirebase(true); // Force save
+      }
+    });
+
+    return () => {
+      subscription.remove();
     };
+  }, [todaySteps]);
 
-    checkAvailability();
-
-    // Subscribe to real-time step updates (only on native devices)
+  // Setup pedometer
+  useEffect(() => {
     let subscription: any;
 
-    const subscribeToPedometer = async () => {
-      try {
-        subscription = Pedometer.watchStepCount((result) => {
-          setCurrentStepCount(result.steps);
-        });
-      } catch (error) {
-        console.log("Error subscribing to pedometer:", error);
+    const setupPedometer = async () => {
+      const isAvailable = await Pedometer.isAvailableAsync();
+      setIsPedometerAvailable(isAvailable);
+
+      if (isAvailable) {
+        console.log("📱 Pedometer available!");
+
+        // Get steps from midnight
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+
+        try {
+          const pastSteps = await Pedometer.getStepCountAsync(start, end);
+          if (pastSteps) {
+            setTodaySteps(pastSteps.steps);
+            console.log(`📊 Steps today: ${pastSteps.steps}`);
+          }
+
+          // Watch for changes
+          subscription = Pedometer.watchStepCount((result) => {
+            const total = (pastSteps?.steps || 0) + result.steps;
+            setTodaySteps(total);
+          });
+        } catch (error) {
+          console.error("❌ Pedometer error:", error);
+        }
       }
     };
 
-    subscribeToPedometer();
+    setupPedometer();
 
-    // Cleanup when component unmounts
     return () => {
-      if (subscription && subscription.remove) {
+      if (subscription) {
         subscription.remove();
       }
     };
   }, []);
 
-  // 🔥 Auto-save steps to Firestore every 30 minutes (TRACKS ALL THREE NUMBERS!)
-  useEffect(() => {
-    const saveStepsToFirestore = async () => {
-      try {
-        // Get current user ID
-        const savedUserId = await AsyncStorage.getItem("kynetix_user_id");
-        const userId = savedUserId || auth.currentUser?.uid;
-        if (!userId) {
-          console.log("⚠️ No user logged in, skipping step save");
-          return;
-        }
-
-        // Get current date and month
-        const today = new Date().toISOString().split("T")[0]; // "2026-02-03"
-        const currentLeague = new Date().toLocaleString("en-US", {
-          month: "long",
-          year: "numeric",
-        }); // "February 2026"
-
-        // Get total steps from device sensor
-        const deviceStepsToday = todaySteps + currentStepCount;
-
-        // Get user's current data from Firestore
-        const userDoc = await getDoc(doc(db, "users", userId));
-        const userData = userDoc.data();
-
-        if (!userData) {
-          console.log("⚠️ User data not found");
-          return;
-        }
-
-        // CHECK 1: Is it a new DAY? (midnight passed - reset daily steps)
-        const isNewDay = userData.dateKey !== today;
-
-        // CHECK 2: Is it a new MONTH? (new league started)
-        const isNewMonth = userData.currentLeague !== currentLeague;
-
-        if (isNewMonth) {
-          // 🎉 NEW MONTH - New league starts!
-          console.log(`🎉 NEW LEAGUE! Welcome to ${currentLeague}!`);
-
-          const lastMonthSteps = userData.stepsThisLeague || 0;
-          const newBestMonth = Math.max(
-            lastMonthSteps,
-            userData.bestMonthSteps || 0,
-          );
-
-          await updateDoc(doc(db, "users", userId), {
-            // Daily (reset for new day)
-            stepsToday: deviceStepsToday,
-            dateKey: today,
-
-            // Monthly (reset for new league)
-            stepsThisLeague: deviceStepsToday,
-            currentLeague: currentLeague,
-            bestMonthSteps: newBestMonth,
-
-            // All-time (keep growing!)
-            totalStepsAllTime:
-              (userData.totalStepsAllTime || 0) + deviceStepsToday,
-
-            lastStepUpdate: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
-
-          console.log(
-            `✅ New league started! Steps reset, all-time = ${(userData.totalStepsAllTime || 0) + deviceStepsToday}`,
-          );
-        } else if (isNewDay) {
-          // 🌅 NEW DAY - Daily reset, but same month
-          console.log(`🌅 New day! ${today}`);
-
-          const yesterdaySteps = userData.stepsToday || 0;
-
-          await updateDoc(doc(db, "users", userId), {
-            // Daily (reset for new day)
-            stepsToday: deviceStepsToday,
-            dateKey: today,
-
-            // Monthly (add yesterday's steps)
-            stepsThisLeague: (userData.stepsThisLeague || 0) + yesterdaySteps,
-
-            // All-time (add yesterday's steps)
-            totalStepsAllTime:
-              (userData.totalStepsAllTime || 0) + yesterdaySteps,
-
-            lastStepUpdate: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
-
-          console.log(
-            `✅ New day! Yesterday: ${yesterdaySteps} steps. Month total: ${(userData.stepsThisLeague || 0) + yesterdaySteps}`,
-          );
-        } else {
-          // ⏰ SAME DAY - Just update today's steps
-          await updateDoc(doc(db, "users", userId), {
-            stepsToday: deviceStepsToday, // Update today's count
-            lastStepUpdate: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
-
-          console.log(`✅ Updated: ${deviceStepsToday} steps today`);
-        }
-
-        // 📊 UPDATE DAILY HISTORY (for weekly calendar!)
-        // Get existing history or initialize empty array
-        const stepHistory = userData?.stepHistory || [];
-
-        // Check if today's entry exists
-        const todayIndex = stepHistory.findIndex(
-          (entry: any) => entry.date === today,
-        );
-
-        if (todayIndex >= 0) {
-          // Update today's steps
-          stepHistory[todayIndex] = {
-            date: today,
-            steps: deviceStepsToday,
-            goalReached: deviceStepsToday >= 10000,
-          };
-        } else {
-          // Add new entry for today
-          stepHistory.push({
-            date: today,
-            steps: deviceStepsToday,
-            goalReached: deviceStepsToday >= 10000,
-          });
-        }
-
-        // Keep only last 30 days (for performance & cost optimization)
-        const sortedHistory = stepHistory
-          .sort((a: any, b: any) => b.date.localeCompare(a.date))
-          .slice(0, 30);
-
-        // Save updated history
-        await updateDoc(doc(db, "users", userId), {
-          stepHistory: sortedHistory,
-        });
-
-        console.log(
-          `📊 Updated step history: ${today} → ${deviceStepsToday} steps (Goal: ${deviceStepsToday >= 10000 ? "✅" : "❌"})`,
-        );
-      } catch (error) {
-        console.error("❌ Error saving steps to Firestore:", error);
-      }
-    };
-
-    // Save immediately on mount (when app opens)
-    saveStepsToFirestore();
-
-    // Then save every 30 minutes
-    const interval = setInterval(saveStepsToFirestore, 1800000); // 30 minutes
-
-    // Cleanup interval when component unmounts
-    return () => clearInterval(interval);
-  }, [todaySteps, currentStepCount]);
-
   return {
+    todaySteps,
     isPedometerAvailable,
-    todaySteps: todaySteps + currentStepCount, // Combine past + current
-    isLoading: false,
+    saveStepsNow: () => saveToFirebase(),
   };
 }

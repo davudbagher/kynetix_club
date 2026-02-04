@@ -1,15 +1,20 @@
+import BadgeModal from "@/components/BadgeModal";
 import VirtualTreesModal from "@/components/VirtualTreesModal";
-import { auth, db } from "@/config/firebase";
+import { db } from "@/config/firebase";
 import Colors from "@/constants/Colors";
+import {
+  Badge,
+  BADGES,
+  getLockedBadges,
+  getUnlockedBadges,
+} from "@/constants/badges";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,7 +23,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// League thresholds
 const LEAGUES = [
   { name: "Bronze", min: 0, max: 50000, emoji: "🥉", color: "#CD7F32" },
   { name: "Başlanğıc", min: 50000, max: 200000, emoji: "🔰", color: "#4A90E2" },
@@ -39,15 +43,18 @@ interface UserData {
   totalStepsAllTime: number;
   createdAt: { seconds: number };
   phoneNumber: string;
+  currentStreakDays: number;
 }
 
 export default function ProfileScreen() {
+  // ALL HOOKS AT TOP
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [savedUserId, setSavedUserId] = useState<string>("");
   const [showTreesModal, setShowTreesModal] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
-  // Load user data
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -73,6 +80,11 @@ export default function ProfileScreen() {
     loadUserData();
   }, []);
 
+  // Calculate badges
+  const unlockedBadges = userData ? getUnlockedBadges(userData) : [];
+  const lockedBadges = userData ? getLockedBadges(userData) : [];
+  const allBadgesForDisplay = [...unlockedBadges, ...lockedBadges.slice(0, 6)];
+
   const getCurrentLeague = () => {
     const totalSteps = userData?.totalStepsAllTime || 0;
     return (
@@ -91,26 +103,6 @@ export default function ProfileScreen() {
     if (!userData?.createdAt) return "Recently";
     const date = new Date(userData.createdAt.seconds * 1000);
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  };
-
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await AsyncStorage.removeItem("kynetix_user_id");
-            await AsyncStorage.removeItem("kynetix_phone_number");
-            await signOut(auth);
-            router.replace("/auth");
-          } catch (error) {
-            Alert.alert("Error", "Failed to logout");
-          }
-        },
-      },
-    ]);
   };
 
   if (isLoading) {
@@ -147,7 +139,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header with Settings */}
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
           <TouchableOpacity
@@ -158,7 +150,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Avatar & Name - MINIMAL */}
+        {/* Avatar & Name */}
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             <Text style={styles.avatar}>{userData.avatar}</Text>
@@ -167,9 +159,8 @@ export default function ProfileScreen() {
           <Text style={styles.memberSince}>Member since {memberSince}</Text>
         </View>
 
-        {/* Stats - CLEAN TWO COLUMN */}
+        {/* Stats */}
         <View style={styles.statsSection}>
-          {/* Total Steps */}
           <TouchableOpacity style={styles.statCard} activeOpacity={1}>
             <Text style={styles.statEmoji}>🚶</Text>
             <Text style={styles.statValue}>
@@ -178,7 +169,6 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Steps</Text>
           </TouchableOpacity>
 
-          {/* Virtual Trees */}
           <TouchableOpacity
             style={[styles.statCard, styles.statCardHighlight]}
             onPress={() => setShowTreesModal(true)}
@@ -195,7 +185,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* League Badge - MINIMAL */}
+        {/* League */}
         <View style={styles.leagueSection}>
           <Text style={styles.sectionLabel}>CURRENT LEAGUE</Text>
           <View style={styles.leagueCard}>
@@ -209,47 +199,68 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.version}>Kynetix Club v1.0</Text>
+        {/* Badges */}
+        <View style={styles.badgesSection}>
+          <Text style={styles.sectionLabel}>BADGES</Text>
+          <View style={styles.badgesGrid}>
+            {allBadgesForDisplay.map((badge) => {
+              const isUnlocked = unlockedBadges.some((b) => b.id === badge.id);
+              return (
+                <TouchableOpacity
+                  key={badge.id}
+                  style={[
+                    styles.badgeItem,
+                    !isUnlocked && styles.badgeItemLocked,
+                  ]}
+                  onPress={() => {
+                    setSelectedBadge(badge);
+                    setShowBadgeModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.badgeItemEmoji}>{badge.emoji}</Text>
+                  {!isUnlocked && (
+                    <View style={styles.badgeLockOverlay}>
+                      <Text style={styles.lockIcon}>🔒</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.badgeCount}>
+            {unlockedBadges.length} / {BADGES.length} Unlocked
+          </Text>
         </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Virtual Trees Modal */}
+      {/* Modals */}
       <VirtualTreesModal
         visible={showTreesModal}
         onClose={() => setShowTreesModal(false)}
         totalSteps={userData?.totalStepsAllTime || 0}
+      />
+
+      <BadgeModal
+        visible={showBadgeModal}
+        badge={selectedBadge}
+        isUnlocked={unlockedBadges.some((b) => b.id === selectedBadge?.id)}
+        onClose={() => setShowBadgeModal(false)}
+        userData={userData}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.darkGrey,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: {
-    fontSize: 18,
-    color: Colors.white,
-    marginBottom: 24,
-  },
+  container: { flex: 1, backgroundColor: Colors.darkGrey },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorText: { fontSize: 18, color: Colors.white, marginBottom: 24 },
 
-  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -258,11 +269,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 32,
   },
-  title: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: Colors.white,
-  },
+  title: { fontSize: 36, fontWeight: "bold", color: Colors.white },
   settingsButton: {
     width: 44,
     height: 44,
@@ -271,11 +278,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.black,
     borderRadius: 22,
   },
-  settingsIcon: {
-    fontSize: 22,
-  },
+  settingsIcon: { fontSize: 22 },
 
-  // Profile Section - MINIMAL
   profileSection: {
     alignItems: "center",
     paddingHorizontal: 24,
@@ -290,21 +294,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 16,
   },
-  avatar: {
-    fontSize: 50,
-  },
+  avatar: { fontSize: 50 },
   name: {
     fontSize: 26,
     fontWeight: "bold",
     color: Colors.white,
     marginBottom: 6,
   },
-  memberSince: {
-    fontSize: 14,
-    color: Colors.lightGrey,
-  },
+  memberSince: { fontSize: 14, color: Colors.lightGrey },
 
-  // Stats Section - CLEAN
   statsSection: {
     flexDirection: "row",
     paddingHorizontal: 24,
@@ -319,24 +317,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 160,
-    // No border - clean!
   },
-  statCardHighlight: {
-    backgroundColor: Colors.neonLime,
-  },
-  statEmoji: {
-    fontSize: 40,
-    marginBottom: 12,
-  },
+  statCardHighlight: { backgroundColor: Colors.neonLime },
+  statEmoji: { fontSize: 40, marginBottom: 12 },
   statValue: {
     fontSize: 32,
     fontWeight: "bold",
     color: Colors.white,
     marginBottom: 4,
   },
-  statValueHighlight: {
-    color: Colors.black,
-  },
+  statValueHighlight: { color: Colors.black },
   statLabel: {
     fontSize: 13,
     color: Colors.lightGrey,
@@ -354,15 +344,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  infoButtonText: {
-    fontSize: 14,
-  },
+  infoButtonText: { fontSize: 14 },
 
-  // League Section - MINIMAL
-  leagueSection: {
-    paddingHorizontal: 24,
-    marginBottom: 40,
-  },
+  leagueSection: { paddingHorizontal: 24, marginBottom: 40 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: "600",
@@ -378,30 +362,49 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
-  leagueEmoji: {
-    fontSize: 48,
-  },
-  leagueInfo: {
-    flex: 1,
-  },
+  leagueEmoji: { fontSize: 48 },
+  leagueInfo: { flex: 1 },
   leagueName: {
     fontSize: 22,
     fontWeight: "bold",
     color: Colors.white,
     marginBottom: 4,
   },
-  leagueSteps: {
-    fontSize: 14,
-    color: Colors.lightGrey,
-  },
+  leagueSteps: { fontSize: 14, color: Colors.lightGrey },
 
-  // Footer
-  footer: {
-    alignItems: "center",
-    paddingVertical: 20,
+  badgesSection: { paddingHorizontal: 24, marginBottom: 40 },
+  badgesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
   },
-  version: {
-    fontSize: 12,
+  badgeItem: {
+    width: "18%",
+    aspectRatio: 1,
+    backgroundColor: Colors.black,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  badgeItemLocked: { opacity: 0.4 },
+  badgeItemEmoji: { fontSize: 28 },
+  badgeLockOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lockIcon: { fontSize: 16 },
+  badgeCount: {
+    fontSize: 13,
     color: Colors.lightGrey,
+    textAlign: "center",
   },
 });

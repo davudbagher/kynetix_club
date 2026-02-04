@@ -12,51 +12,63 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
-  // Get REAL steps from device pedometer
   const { todaySteps, isPedometerAvailable } = usePedometer();
-
-  // 📊 State for step history (for weekly chart)
   const [stepHistory, setStepHistory] = useState<any[]>([]);
+  const dailyGoal = 10000;
+  const userName = "Davud";
 
-  // 📊 Load step history from Firestore
+  // Load step history from Firestore (ONCE on mount)
   useEffect(() => {
     const loadStepHistory = async () => {
       try {
-        // Get current user ID
         const savedUserId = await AsyncStorage.getItem("kynetix_user_id");
         const userId = savedUserId || auth.currentUser?.uid;
 
         if (userId) {
-          // Load user document from Firestore
           const userDoc = await getDoc(doc(db, "users", userId));
           const userData = userDoc.data();
-
-          // Set step history (empty array if none exists yet)
           setStepHistory(userData?.stepHistory || []);
-
           console.log(
             `📊 Loaded ${userData?.stepHistory?.length || 0} days of step history`,
           );
         }
       } catch (error) {
         console.error("❌ Error loading step history:", error);
-        setStepHistory([]); // Set empty on error
+        setStepHistory([]);
       }
     };
-
     loadStepHistory();
-  }, []); // Load once when screen mounts
+  }, []);
 
-  // User settings
-  const dailyGoal = 10000;
-  const userName = "Davud";
+  // Update step history when todaySteps changes (LIVE!)
+  useEffect(() => {
+    if (todaySteps === 0) return;
 
-  // Calculate derived stats
-  const kmWalked = (todaySteps * 0.0008).toFixed(1); // ~0.8m per step
-  const treesPlanted = Math.floor(todaySteps / 280); // 1 tree per 280 steps
-  const caloriesBurned = Math.floor(todaySteps * 0.04); // ~0.04 cal per step
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    const todayString = `${year}-${month}-${day}`;
 
-  // Get greeting based on time
+    console.log(`📊 Updating chart: ${todayString} → ${todaySteps} steps`);
+
+    setStepHistory((prev) => {
+      const withoutToday = prev.filter((entry) => entry.date !== todayString);
+      return [
+        ...withoutToday,
+        {
+          date: todayString,
+          steps: todaySteps,
+          goalReached: todaySteps >= dailyGoal,
+        },
+      ];
+    });
+  }, [todaySteps]);
+
+  const kmWalked = (todaySteps * 0.0008).toFixed(1);
+  const treesPlanted = Math.floor(todaySteps / 280);
+  const caloriesBurned = Math.floor(todaySteps * 0.04);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -71,7 +83,6 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
@@ -79,12 +90,10 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Main Progress Circle */}
         <View style={styles.progressSection}>
           <CircularProgress currentSteps={todaySteps} goalSteps={dailyGoal} />
         </View>
 
-        {/* Stat Cards Row */}
         <View style={styles.statsRow}>
           <StatCard
             icon={<Ionicons name="map-outline" size={24} color="#333" />}
@@ -103,17 +112,14 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Weekly Summary */}
         <View style={styles.weeklySection}>
           <View style={styles.weeklySummaryHeader}>
             <Text style={styles.weeklySummaryTitle}>This Week</Text>
             <Text style={styles.weeklySummarySubtitle}>Your activity</Text>
           </View>
-          {/* Weekly Bar Chart */}
-          <WeeklyBarChart stepHistory={stepHistory} goalSteps={10000} />
+          <WeeklyBarChart stepHistory={stepHistory} goalSteps={dailyGoal} />
         </View>
 
-        {/* Bottom spacing for tab bar */}
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -121,16 +127,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -177,17 +176,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: "500",
-  },
-  chartPlaceholder: {
-    backgroundColor: Colors.black,
-    borderRadius: 16,
-    padding: 32,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.cardGrey,
-  },
-  chartPlaceholderText: {
-    fontSize: 14,
-    color: Colors.lightGrey,
   },
 });

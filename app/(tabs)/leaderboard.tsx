@@ -1,12 +1,10 @@
 import Colors from "@/constants/Colors";
-import {
-  getCurrentUserData,
-  getCurrentUserLeague,
-  useLeaderboard,
-} from "@/hooks/useLeaderboard";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { getTimeUntilEndOfMonth } from "@/utils/timeUtils";
 import { Ionicons } from "@expo/vector-icons";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   ScrollView,
@@ -20,18 +18,36 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function LeaderboardScreen() {
-  // 🔥 NEW: Get REAL data from Firestore!
-  const { leagues: LEAGUES, isLoading } = useLeaderboard();
+  // Get data from hook (includes userLeague and userData!)
+  const { leagues, isLoading, userLeague, userData } = useLeaderboard();
 
-  const userLeague = getCurrentUserLeague(LEAGUES);
-  const userData = getCurrentUserData(LEAGUES);
-
-  const [currentIndex, setCurrentIndex] = useState(() => {
-    return userLeague ? LEAGUES.findIndex((l) => l.id === userLeague.id) : 2;
+  console.log("🎮 LeaderboardScreen render:", {
+    isLoading,
+    leaguesCount: leagues.length,
+    hasUserLeague: !!userLeague,
+    hasUserData: !!userData,
+    userLeagueName: userLeague?.name,
+    userRank: userData?.rank,
+    userSteps: userData?.steps,
   });
 
+  const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Update currentIndex when userLeague loads
+  useEffect(() => {
+    if (userLeague && leagues.length > 0) {
+      const index = leagues.findIndex((l) => l.id === userLeague.id);
+      if (index !== -1) {
+        setCurrentIndex(index);
+        // Auto-scroll to user's league
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index, animated: false });
+        }, 100);
+      }
+    }
+  }, [userLeague, leagues]);
 
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -49,13 +65,27 @@ export default function LeaderboardScreen() {
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.neonLime} />
+          <Text style={styles.loadingText}>Loading leaderboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>🏆 Leaderboard</Text>
         <Text style={styles.subtitle}>Climb the leagues of Baku</Text>
       </View>
 
+      {/* Your Rank Card - Shows when data loaded */}
       {userData && userLeague && (
         <View style={styles.yourRankCard}>
           <View style={styles.yourRankHeader}>
@@ -96,8 +126,9 @@ export default function LeaderboardScreen() {
         </View>
       )}
 
+      {/* League Dots Navigation */}
       <View style={styles.dotsContainer}>
-        {LEAGUES.map((league, index) => (
+        {leagues.map((league, index) => (
           <TouchableOpacity
             key={league.id}
             onPress={() =>
@@ -120,9 +151,10 @@ export default function LeaderboardScreen() {
         ))}
       </View>
 
+      {/* Horizontal Scrolling Leagues */}
       <FlatList
         ref={flatListRef}
-        data={LEAGUES}
+        data={leagues}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -151,6 +183,7 @@ function LeagueCard({ league, scrollViewRef }: any) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.cardContent}
       >
+        {/* League Header with Timer */}
         <View style={styles.leagueHeader}>
           <View>
             <Text style={styles.leagueName}>{league.name}</Text>
@@ -162,10 +195,13 @@ function LeagueCard({ league, scrollViewRef }: any) {
           </View>
           <View style={styles.timerBadge}>
             <Ionicons name="time-outline" size={14} color={Colors.neonLime} />
-            <Text style={styles.timerText}>2d 8h left</Text>
+            <Text style={styles.timerText}>
+              {getTimeUntilEndOfMonth()} left
+            </Text>
           </View>
         </View>
 
+        {/* Users List */}
         <View style={styles.usersList}>
           {league.users.map((user: any) => {
             const isPromotion = user.rank <= league.promotionCount;
@@ -180,6 +216,7 @@ function LeagueCard({ league, scrollViewRef }: any) {
                   user.isCurrentUser && styles.userRowHighlight,
                 ]}
               >
+                {/* Promotion/Demotion Border */}
                 {isPromotion && <View style={styles.promotionBorder} />}
                 {isDemotion && <View style={styles.demotionBorder} />}
 
@@ -204,16 +241,41 @@ function LeagueCard({ league, scrollViewRef }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.darkGrey },
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.darkGrey,
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.lightGrey,
+    marginTop: 16,
+  },
+
+  // Header
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
   title: {
     fontSize: 32,
     fontWeight: "bold",
     color: Colors.white,
     marginBottom: 4,
   },
-  subtitle: { fontSize: 14, color: Colors.lightGrey },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.lightGrey,
+  },
 
+  // Your Rank Card
   yourRankCard: {
     marginHorizontal: 20,
     marginBottom: 16,
@@ -229,8 +291,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  yourRankLabel: { fontSize: 12, color: Colors.lightGrey, marginBottom: 4 },
-  yourRankLeague: { fontSize: 18, fontWeight: "bold", color: Colors.white },
+  yourRankLabel: {
+    fontSize: 12,
+    color: Colors.lightGrey,
+    marginBottom: 4,
+  },
+  yourRankLeague: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Colors.white,
+  },
   jumpButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -240,16 +310,31 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
   },
-  jumpButtonText: { fontSize: 12, fontWeight: "bold", color: Colors.black },
-  yourRankStats: { flexDirection: "row", gap: 12 },
-  yourRankStat: { flex: 1, alignItems: "center" },
-  yourRankStatLabel: { fontSize: 11, color: Colors.lightGrey, marginBottom: 4 },
+  jumpButtonText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: Colors.black,
+  },
+  yourRankStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  yourRankStat: {
+    flex: 1,
+    alignItems: "center",
+  },
+  yourRankStatLabel: {
+    fontSize: 11,
+    color: Colors.lightGrey,
+    marginBottom: 4,
+  },
   yourRankStatValue: {
     fontSize: 16,
     fontWeight: "bold",
     color: Colors.neonLime,
   },
 
+  // Dots Navigation
   dotsContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -257,19 +342,37 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 20,
   },
-  dotWrapper: { alignItems: "center", gap: 4 },
+  dotWrapper: {
+    alignItems: "center",
+    gap: 4,
+  },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.cardGrey,
   },
-  dotActive: { backgroundColor: Colors.neonLime },
-  dotLabel: { fontSize: 10, color: Colors.lightGrey },
-  dotLabelActive: { color: Colors.neonLime, fontWeight: "bold" },
+  dotActive: {
+    backgroundColor: Colors.neonLime,
+  },
+  dotLabel: {
+    fontSize: 10,
+    color: Colors.lightGrey,
+  },
+  dotLabelActive: {
+    color: Colors.neonLime,
+    fontWeight: "bold",
+  },
 
-  card: { width: SCREEN_WIDTH, flex: 1, paddingHorizontal: 20 },
-  cardContent: { paddingBottom: 20 },
+  // League Cards
+  card: {
+    width: SCREEN_WIDTH,
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  cardContent: {
+    paddingBottom: 20,
+  },
 
   leagueHeader: {
     flexDirection: "row",
@@ -283,7 +386,10 @@ const styles = StyleSheet.create({
     color: Colors.white,
     marginBottom: 4,
   },
-  leagueSubtitle: { fontSize: 12, color: Colors.lightGrey },
+  leagueSubtitle: {
+    fontSize: 12,
+    color: Colors.lightGrey,
+  },
   timerBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -293,9 +399,16 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  timerText: { fontSize: 12, color: Colors.neonLime, fontWeight: "600" },
+  timerText: {
+    fontSize: 12,
+    color: Colors.neonLime,
+    fontWeight: "600",
+  },
 
-  usersList: { gap: 8 },
+  // Users List
+  usersList: {
+    gap: 8,
+  },
   userRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -338,7 +451,18 @@ const styles = StyleSheet.create({
     color: Colors.lightGrey,
     width: 28,
   },
-  userAvatar: { fontSize: 24 },
-  userName: { flex: 1, fontSize: 14, fontWeight: "600", color: Colors.white },
-  userSteps: { fontSize: 14, fontWeight: "bold", color: Colors.neonLime },
+  userAvatar: {
+    fontSize: 24,
+  },
+  userName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.white,
+  },
+  userSteps: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: Colors.neonLime,
+  },
 });

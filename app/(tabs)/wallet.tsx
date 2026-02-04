@@ -4,13 +4,17 @@ import {
   getTrendingOffers,
   Offer,
   Partner,
-  PARTNERS
+  PARTNERS,
 } from "@/constants/mockData";
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -39,51 +43,50 @@ export default function WalletScreen() {
   const partnersRef = useRef<View>(null);
   const flipAnimation = useRef(new Animated.Value(0)).current;
 
-  // Load wallet balance from Firebase (like Profile does!)
-  useEffect(() => {
-    const loadWalletBalance = async () => {
-      try {
-        console.log("💰 Loading wallet balance...");
-        setIsLoading(true);
+  // Load wallet balance from Firebase - Reload when tab is focused
+  const loadWalletBalance = useCallback(async () => {
+    try {
+      console.log("💰 Loading wallet balance...");
+      setIsLoading(true);
 
-        // Get user ID from AsyncStorage
-        const userId = await AsyncStorage.getItem("kynetix_user_id");
+      // Get user ID from AsyncStorage
+      const userId = await AsyncStorage.getItem("kynetix_user_id");
 
-        if (!userId) {
-          console.log("⚠️ No user ID found");
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch user document from Firestore
-        const userDoc = await getDoc(doc(db, "users", userId));
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const totalSteps = userData.totalStepsAllTime || 0;
-          const spentSteps = userData.spentSteps || 0;
-
-          setTotalEarned(totalSteps);
-          setAvailableToSpend(totalSteps - spentSteps);
-
-          console.log(
-            `💰 Wallet loaded: ${totalSteps.toLocaleString()} total, ${(totalSteps - spentSteps).toLocaleString()} available`,
-          );
-        }
-
+      if (!userId) {
+        console.log("⚠️ No user ID found");
         setIsLoading(false);
-      } catch (error) {
-        console.error("❌ Error loading wallet:", error);
-        setIsLoading(false);
+        return;
       }
-    };
 
-    loadWalletBalance();
+      // Fetch user document from Firestore
+      const userDoc = await getDoc(doc(db, "users", userId));
 
-    // Refresh every 30 seconds (in case user walked more)
-    const interval = setInterval(loadWalletBalance, 30000);
-    return () => clearInterval(interval);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const totalSteps = userData.totalStepsAllTime || 0;
+        const spentSteps = userData.spentSteps || 0;
+
+        setTotalEarned(totalSteps);
+        setAvailableToSpend(totalSteps - spentSteps);
+
+        console.log(
+          `💰 Wallet loaded: ${totalSteps.toLocaleString()} total, ${(totalSteps - spentSteps).toLocaleString()} available`,
+        );
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error("❌ Error loading wallet:", error);
+      setIsLoading(false);
+    }
   }, []);
+
+  // Reload wallet data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadWalletBalance();
+    }, [loadWalletBalance]),
+  );
 
   // Get trending offers
   const trendingOffers = getTrendingOffers();
@@ -153,7 +156,11 @@ export default function WalletScreen() {
               >
                 <View style={styles.cardTopSection}>
                   <Text style={styles.cardLabelPrimary}>AVAILABLE</Text>
-                  <Ionicons name="sparkles" size={24} color="rgba(0, 0, 0, 0.6)" />
+                  <Ionicons
+                    name="sparkles"
+                    size={24}
+                    color="rgba(0, 0, 0, 0.6)"
+                  />
                 </View>
                 <Text style={styles.cardBalancePrimary}>
                   {availableToSpend.toLocaleString()}
@@ -163,11 +170,19 @@ export default function WalletScreen() {
                 </Text>
                 <View style={styles.cardBottomSection}>
                   <Text style={styles.cardHolderNamePrimary}>Ready to Use</Text>
-                  <Ionicons name="wallet" size={24} color="rgba(0, 0, 0, 0.6)" />
+                  <Ionicons
+                    name="wallet"
+                    size={24}
+                    color="rgba(0, 0, 0, 0.6)"
+                  />
                 </View>
                 {/* Flip indicator */}
                 <View style={styles.flipIndicator}>
-                  <MaterialIcons name="flip" size={16} color="rgba(0, 0, 0, 0.4)" />
+                  <MaterialIcons
+                    name="flip"
+                    size={16}
+                    color="rgba(0, 0, 0, 0.4)"
+                  />
                 </View>
               </Animated.View>
 
@@ -182,7 +197,11 @@ export default function WalletScreen() {
               >
                 <View style={styles.cardTopSection}>
                   <Text style={styles.cardLabel}>TOTAL EARNED</Text>
-                  <MaterialCommunityIcons name="diamond-stone" size={24} color={Colors.lightGrey} />
+                  <MaterialCommunityIcons
+                    name="diamond-stone"
+                    size={24}
+                    color={Colors.lightGrey}
+                  />
                 </View>
                 <Text style={styles.cardBalance}>
                   {totalEarned.toLocaleString()}
@@ -190,11 +209,19 @@ export default function WalletScreen() {
                 <Text style={styles.cardBalanceLabel}>steps</Text>
                 <View style={styles.cardBottomSection}>
                   <Text style={styles.cardHolderName}>Kynetix Member</Text>
-                  <Ionicons name="footsteps" size={24} color={Colors.lightGrey} />
+                  <Ionicons
+                    name="footsteps"
+                    size={24}
+                    color={Colors.lightGrey}
+                  />
                 </View>
                 {/* Flip indicator */}
                 <View style={styles.flipIndicator}>
-                  <MaterialIcons name="flip" size={16} color="rgba(255, 255, 255, 0.4)" />
+                  <MaterialIcons
+                    name="flip"
+                    size={16}
+                    color="rgba(255, 255, 255, 0.4)"
+                  />
                 </View>
               </Animated.View>
             </TouchableOpacity>
@@ -222,8 +249,11 @@ export default function WalletScreen() {
               partnersRef.current?.measureLayout(
                 scrollViewRef.current as any,
                 (x, y) => {
-                  scrollViewRef.current?.scrollTo({ y: y - 100, animated: true });
-                }
+                  scrollViewRef.current?.scrollTo({
+                    y: y - 100,
+                    animated: true,
+                  });
+                },
               );
             }}
           >
@@ -231,10 +261,7 @@ export default function WalletScreen() {
             <Text style={styles.secondaryActionText}>Redeem</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.iconOnlyButton}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.iconOnlyButton} activeOpacity={0.8}>
             <Ionicons name="receipt" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>

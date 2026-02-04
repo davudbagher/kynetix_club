@@ -22,6 +22,12 @@ export default function WeeklyBarChart({
   const [weekDays, setWeekDays] = useState<DayData[]>([]);
 
   useEffect(() => {
+    // Ensure stepHistory is an array
+    if (!Array.isArray(stepHistory)) {
+      console.warn("⚠️ stepHistory is not an array:", stepHistory);
+      return;
+    }
+
     // Generate last 7 days (Monday to Sunday)
     const days: DayData[] = [];
     const today = new Date();
@@ -35,14 +41,23 @@ export default function WeeklyBarChart({
     for (let i = 0; i < 7; i++) {
       const date = new Date();
       date.setDate(today.getDate() - daysSinceMonday + i);
-      const dateString = date.toISOString().split("T")[0];
+
+      // Format date consistently (YYYY-MM-DD in local timezone)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const dateString = `${year}-${month}-${day}`;
 
       // Find steps for this day in history
       const dayData = stepHistory.find((entry) => entry.date === dateString);
       const steps = dayData?.steps || 0;
 
-      // Check if this day is today
-      const isToday = dateString === today.toISOString().split("T")[0];
+      // Check if this day is today (same format)
+      const todayYear = today.getFullYear();
+      const todayMonth = String(today.getMonth() + 1).padStart(2, "0");
+      const todayDay = String(today.getDate()).padStart(2, "0");
+      const todayString = `${todayYear}-${todayMonth}-${todayDay}`;
+      const isToday = dateString === todayString;
 
       // Check if this day is in the future
       const isFuture = date > today;
