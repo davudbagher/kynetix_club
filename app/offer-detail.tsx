@@ -1,29 +1,66 @@
 import Colors from "@/constants/Colors";
 import {
-    generateRedemptionCode,
-    getOfferById,
-    getPartnerById,
+  getOfferById,
+  getPartnerById,
 } from "@/constants/mockData";
-import { usePedometer } from "@/hooks/usePedometer";
-import { Ionicons } from "@expo/vector-icons";
-import { router, Stack, useLocalSearchParams } from "expo-router";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  getWalletBalance,
+  redeemOffer,
+  WalletBalance,
+} from "@/utils/walletUtils";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function OfferDetailScreen() {
   const { offerId } = useLocalSearchParams<{ offerId: string }>();
-  const { todaySteps } = usePedometer();
+
+  // State
+  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(
+    null,
+  );
+  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
+  const [isRedeeming, setIsRedeeming] = useState(false);
 
   // Get offer and partner data
   const offer = getOfferById(offerId);
   const partner = offer ? getPartnerById(offer.partner_id) : null;
+
+  // Load wallet balance on mount
+  useEffect(() => {
+    const loadBalance = async () => {
+      try {
+        setIsLoadingBalance(true);
+        const userId = await AsyncStorage.getItem("kynetix_user_id");
+
+        if (!userId) {
+          console.log("⚠️ No user ID found");
+          setIsLoadingBalance(false);
+          return;
+        }
+
+        const balance = await getWalletBalance(userId);
+        setWalletBalance(balance);
+        setIsLoadingBalance(false);
+      } catch (error) {
+        console.error("❌ Error loading wallet balance:", error);
+        setIsLoadingBalance(false);
+      }
+    };
+
+    loadBalance();
+  }, []);
 
   if (!offer || !partner) {
     return (
@@ -33,9 +70,11 @@ export default function OfferDetailScreen() {
     );
   }
 
-  const canAfford = todaySteps >= offer.steps_required;
+  const canAfford =
+    walletBalance &&
+    walletBalance.availableToSpend >= offer.steps_required;
 
-  const handleRedeem = () => {
+  const handleRedeem = async () => {
     if (!canAfford) {
       Alert.alert(
         "Not Enough Steps",
@@ -45,18 +84,51 @@ export default function OfferDetailScreen() {
       return;
     }
 
-    // Generate redemption code
-    const code = generateRedemptionCode();
+    try {
+      setIsRedeeming(true);
 
-    // Show success (later we'll save to Firebase)
-    Alert.alert(
-      "Redeemed! 🎉",
-      `Your redemption code is: ${code}\n\nShow this to the cashier at ${partner.name}`,
-      [{ text: "Done", onPress: () => router.back() }],
-    );
+      // Get user ID
+      const userId = await AsyncStorage.getItem("kynetix_user_id");
+      if (!userId) {
+        Alert.alert("Error", "User not logged in");
+        setIsRedeeming(false);
+        return;
+      }
 
-    // TODO: Save redemption to Firebase
-    // TODO: Deduct steps from user balance
+      // Redeem offer (atomic transaction)
+      const result = await redeemOffer(
+        userId,
+        offer.id,
+        offer.partner_id,
+        offer.steps_required,
+        offer.title,
+      );
+
+      setIsRedeeming(false);
+
+      if (result.success && result.redemptionCode) {
+        // Set flag to refresh wallet on next visit
+        await AsyncStorage.setItem("wallet_needs_refresh", "true");
+
+        // Success!
+        Alert.alert(
+          "Redeemed! 🎉",
+          `Your redemption code is:\n\n${result.redemptionCode}\n\nShow this to the cashier at ${partner.name}`,
+          [{ text: "Done", onPress: () => router.back() }],
+        );
+      } else {
+        // Failed
+        Alert.alert(
+          "Redemption Failed",
+          result.error || "Something went wrong. Please try again.",
+          [{ text: "OK" }],
+        );
+      }
+    } catch (error: any) {
+      setIsRedeeming(false);
+      console.error("❌ Redemption error:", error);
+      Alert.alert("Error", error.message || "Failed to redeem offer");
+    }
   };
 
   return (
@@ -140,23 +212,39 @@ export default function OfferDetailScreen() {
           </View>
 
           {/* Your Balance */}
-          <View style={styles.balanceSection}>
-            <Text style={styles.balanceLabel}>Your available steps</Text>
-            <Text
-              style={[
-                styles.balanceAmount,
-                !canAfford && styles.balanceInsufficient,
-              ]}
-            >
-              {todaySteps.toLocaleString()}
-            </Text>
-            {!canAfford && (
-              <Text style={styles.balanceWarning}>
-                ⚠️ Need {(offer.steps_required - todaySteps).toLocaleString()}{" "}
-                more steps
+          {isLoadingBalance ? (
+            <View style={styles.balanceSection}>
+              <ActivityIndicator size="small" color={Colors.neonLime} />
+              <Text style={styles.balanceLabel}>Loading balance...</Text>
+            </View>
+          ) : walletBalance ? (
+            <View style={styles.balanceSection}>
+              <Text style={styles.balanceLabel}>Your available steps</Text>
+              <Text
+                style={[
+                  styles.balanceAmount,
+                  !canAfford && styles.balanceInsufficient,
+                ]}
+              >
+                {walletBalance.availableToSpend.toLocaleString()}
               </Text>
-            )}
-          </View>
+              {!canAfford && (
+                <Text style={styles.balanceWarning}>
+                  ⚠️ Need{" "}
+                  {(
+                    offer.steps_required - walletBalance.availableToSpend
+                  ).toLocaleString()}{" "}
+                  more steps
+                </Text>
+              )}
+            </View>
+          ) : (
+            <View style={styles.balanceSection}>
+              <Text style={styles.balanceLabel}>
+                Unable to load balance
+              </Text>
+            </View>
+          )}
 
           {/* Bottom spacing */}
           <View style={{ height: 120 }} />
@@ -167,14 +255,19 @@ export default function OfferDetailScreen() {
           <TouchableOpacity
             style={[
               styles.redeemButton,
-              !canAfford && styles.redeemButtonDisabled,
+              (!canAfford || isRedeeming) && styles.redeemButtonDisabled,
             ]}
             onPress={handleRedeem}
             activeOpacity={0.8}
+            disabled={!canAfford || isRedeeming || isLoadingBalance}
           >
-            <Text style={styles.redeemButtonText}>
-              {canAfford ? "🎉 Redeem Now" : "🚶 Walk More to Redeem"}
-            </Text>
+            {isRedeeming ? (
+              <ActivityIndicator size="small" color={Colors.black} />
+            ) : (
+              <Text style={styles.redeemButtonText}>
+                {canAfford ? "🎉 Redeem Now" : "🚶 Walk More to Redeem"}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>

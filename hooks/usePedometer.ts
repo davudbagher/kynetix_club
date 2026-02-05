@@ -1,12 +1,13 @@
 import { db } from "@/config/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pedometer } from "expo-sensors";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 const DAILY_GOAL = 10000;
-const SAVE_INTERVAL = 480000; // 8 minutes (75% reduction: 2min → 8min)
+const SAVE_INTERVAL = 1800000; // 30 minutes (more aggressive cost optimization)
+const STEP_THRESHOLD = 500; // Only save meaningful activity bursts
 
 export function usePedometer() {
   const [todaySteps, setTodaySteps] = useState(0);
@@ -14,16 +15,30 @@ export function usePedometer() {
   const lastSavedSteps = useRef(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Optimized save function with debouncing
+  // Helper: Check if it's sleep hours (11 PM - 6 AM)
+  const isSleepHours = () => {
+    const hour = new Date().getHours();
+    return hour >= 23 || hour < 6;
+  };
+
+  // Optimized save function with aggressive debouncing
   const saveToFirebase = async (force = false) => {
     try {
       const userId = await AsyncStorage.getItem("kynetix_user_id");
       if (!userId || todaySteps === 0) return;
 
+      // Skip during sleep hours (unless forced)
+      if (!force && isSleepHours()) {
+        console.log("😴 Skipping save during sleep hours");
+        return;
+      }
+
       // Skip if steps haven't changed significantly (unless forced)
       const stepDifference = Math.abs(todaySteps - lastSavedSteps.current);
-      if (!force && stepDifference < 50) {
-        console.log("📊 Skipping save - minimal change");
+      if (!force && stepDifference < STEP_THRESHOLD) {
+        console.log(
+          `📊 Skipping save - only ${stepDifference} steps changed (threshold: ${STEP_THRESHOLD})`,
+        );
         return;
       }
 
@@ -93,26 +108,66 @@ export function usePedometer() {
         );
       }
 
-      // Save to Firebase
+
+      // Calculate current month league period
+      const currentLeague = today.toLocaleString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+
+      // Determine if we need to reset league steps (new month)
+      const existingLeague = userData?.currentLeague || "";
+      const isNewLeague = existingLeague !== currentLeague;
+
+      // If new league period, reset stepsThisLeague
+      const stepsThisLeague = isNewLeague ? todaySteps : (userData?.stepsThisLeague || 0);
+
+      // For same league, accumulate steps (but prevent duplicates from same day)
+      const existingDateKey = userData?.dateKey || "";
+      const existingStepsToday = userData?.stepsToday || 0;
+
+      let updatedStepsThisLeague = stepsThisLeague;
+      if (!isNewLeague && existingDateKey === todayString) {
+        // Same day - update today's contribution
+        updatedStepsThisLeague = stepsThisLeague - existingStepsToday + todaySteps;
+      } else if (!isNewLeague && existingDateKey !== todayString) {
+        // New day in same league - add today's steps
+        updatedStepsThisLeague = stepsThisLeague + todaySteps;
+      }
+
+      console.log(`📊 League: ${currentLeague}, New League: ${isNewLeague}`);
+      console.log(`📊 Steps this league: ${updatedStepsThisLeague} (today: ${todaySteps})`);
+
+      // Save to Firebase - UPDATE ALL FIELDS!
       await updateDoc(doc(db, "users", userId), {
+        // Step tracking fields
+        stepsToday: todaySteps,
+        stepsThisLeague: updatedStepsThisLeague,
         totalStepsAllTime: totalStepsAllTime,
         stepHistory: sortedHistory,
+
+        // Date tracking
+        dateKey: todayString,
+        currentLeague: currentLeague,
+
+        // Timestamp
+        lastStepUpdate: Timestamp.now(),
       });
 
       lastSavedSteps.current = todaySteps;
       console.log(
-        `✅ Saved: ${todaySteps} steps today, ${totalStepsAllTime} total all-time`,
+        `✅ Saved: ${todaySteps} steps today, ${updatedStepsThisLeague} this league, ${totalStepsAllTime} total all-time`,
       );
     } catch (error) {
       console.error("❌ Save error:", error);
     }
   };
 
-  // Save every 8 minutes (75% cost reduction)
+  // Save every 30 minutes (aggressive cost reduction)
   useEffect(() => {
     const interval = setInterval(() => {
       if (todaySteps > 0) {
-        console.log("💾 Auto-save (8min interval)...");
+        console.log("💾 Auto-save (30min interval)...");
         saveToFirebase();
       }
     }, SAVE_INTERVAL);

@@ -8,6 +8,7 @@ import {
   getLockedBadges,
   getUnlockedBadges,
 } from "@/constants/badges";
+import { getUserLeague } from "@/constants/leagues";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -22,20 +23,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const LEAGUES = [
-  { name: "Bronze", min: 0, max: 50000, emoji: "🥉", color: "#CD7F32" },
-  { name: "Başlanğıc", min: 50000, max: 200000, emoji: "🔰", color: "#4A90E2" },
-  { name: "Orta", min: 200000, max: 500000, emoji: "⚡", color: "#9B59B6" },
-  { name: "İrəli", min: 500000, max: 1000000, emoji: "🚀", color: "#E67E22" },
-  {
-    name: "Çempion",
-    min: 1000000,
-    max: Infinity,
-    emoji: "👑",
-    color: "#F1C40F",
-  },
-];
 
 interface UserData {
   fullName: string;
@@ -87,11 +74,7 @@ export default function ProfileScreen() {
 
   const getCurrentLeague = () => {
     const totalSteps = userData?.totalStepsAllTime || 0;
-    return (
-      LEAGUES.find(
-        (league) => totalSteps >= league.min && totalSteps < league.max,
-      ) || LEAGUES[0]
-    );
+    return getUserLeague(totalSteps);
   };
 
   const getVirtualTrees = () => {

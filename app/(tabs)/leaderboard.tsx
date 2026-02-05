@@ -5,8 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,7 +21,8 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function LeaderboardScreen() {
   // Get data from hook (includes userLeague and userData!)
-  const { leagues, isLoading, userLeague, userData } = useLeaderboard();
+  const { leagues, isLoading, userLeague, userData, refresh, refreshesRemaining } =
+    useLeaderboard();
 
   console.log("🎮 LeaderboardScreen render:", {
     isLoading,
@@ -29,11 +32,29 @@ export default function LeaderboardScreen() {
     userLeagueName: userLeague?.name,
     userRank: userData?.rank,
     userSteps: userData?.steps,
+    refreshesRemaining,
   });
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Handle pull-to-refresh with rate limiting
+  const onRefresh = async () => {
+    setRefreshing(true);
+    const result = await refresh();
+    setRefreshing(false);
+
+    // Show error if rate limited
+    if (result && !result.success && result.error) {
+      Alert.alert(
+        "Refresh Limit Reached",
+        result.error + "\n\nThis helps us keep the app free! 🎉",
+        [{ text: "OK" }]
+      );
+    }
+  };
 
   // Update currentIndex when userLeague loads
   useEffect(() => {
@@ -168,20 +189,33 @@ export default function LeaderboardScreen() {
           index,
         })}
         renderItem={({ item }) => (
-          <LeagueCard league={item} scrollViewRef={scrollViewRef} />
+          <LeagueCard
+            league={item}
+            scrollViewRef={scrollViewRef}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
         )}
       />
     </SafeAreaView>
   );
 }
 
-function LeagueCard({ league, scrollViewRef }: any) {
+function LeagueCard({ league, scrollViewRef, refreshing, onRefresh }: any) {
   return (
     <View style={styles.card}>
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.cardContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.neonLime}
+            colors={[Colors.neonLime]}
+          />
+        }
       >
         {/* League Header with Timer */}
         <View style={styles.leagueHeader}>

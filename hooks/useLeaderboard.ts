@@ -1,7 +1,7 @@
 import { db } from "@/config/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export interface LeaderboardUser {
   id: string;
@@ -67,15 +67,21 @@ const LEAGUES = [
   },
 ];
 
+const CACHE_KEY = "leaderboard_cache";
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes (stay within free tier)
+const REFRESH_LIMIT = 2; // Max refreshes per cache window
+const REFRESH_WINDOW = 30 * 60 * 1000; // 30 minutes
+
 export function useLeaderboard() {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const [refreshCount, setRefreshCount] = useState(0);
+  const [refreshWindowStart, setRefreshWindowStart] = useState(Date.now());
 
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    const setupListener = async () => {
+  const fetchLeaderboard = useCallback(
+    async (forceRefresh = false, isManualRefresh = false) => {
       try {
         // GET USER ID FROM ASYNCSTORAGE (your custom ID!)
         const userId = await AsyncStorage.getItem("kynetix_user_id");
@@ -86,72 +92,122 @@ export function useLeaderboard() {
         if (!userId) {
           console.warn("⚠️ No user ID found");
           setIsLoading(false);
-          return;
+          return { success: false, error: "No user ID" };
         }
 
+        // Rate limiting for manual refreshes
+        if (isManualRefresh) {
+          const now = Date.now();
+
+          // Reset window if expired
+          if (now - refreshWindowStart > REFRESH_WINDOW) {
+            setRefreshWindowStart(now);
+            setRefreshCount(0);
+          }
+
+          // Check if user exceeded refresh limit
+          if (refreshCount >= REFRESH_LIMIT) {
+            const timeUntilReset = Math.ceil(
+              (REFRESH_WINDOW - (now - refreshWindowStart)) / 1000 / 60
+            );
+            console.log(`⚠️ Refresh limit reached. Try again in ${timeUntilReset}m`);
+            return {
+              success: false,
+              error: `Please wait ${timeUntilReset} minute${timeUntilReset > 1 ? "s" : ""} before refreshing again`,
+            };
+          }
+
+          // Increment refresh count
+          setRefreshCount(prev => prev + 1);
+          console.log(`🔄 Manual refresh ${refreshCount + 1}/${REFRESH_LIMIT}`);
+        }
+
+        // Check cache first (unless force refresh)
+        if (!forceRefresh && !isManualRefresh) {
+          const now = Date.now();
+          const timeSinceLastFetch = now - lastFetchTime;
+
+          if (timeSinceLastFetch < CACHE_DURATION && leagues.length > 0) {
+            console.log(
+              `✅ Using cached leaderboard (${Math.floor(timeSinceLastFetch / 1000)}s old)`,
+            );
+            setIsLoading(false);
+            return { success: true, fromCache: true };
+          }
+        }
+
+        // Try to load cached data while fetching fresh data
+        if (forceRefresh) {
+          const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+          if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            setLeagues(parsed);
+            console.log("📦 Loaded cached data while refreshing");
+          }
+        }
+
+        setIsLoading(true);
+
+        // Fetch fresh data from Firestore
         const usersQuery = query(
           collection(db, "users"),
           orderBy("stepsThisLeague", "desc"),
         );
 
-        unsubscribe = onSnapshot(
-          usersQuery,
-          (snapshot) => {
-            try {
-              const allUsers = snapshot.docs.map((doc) => {
-                const data = doc.data();
-                const isMe = doc.id === userId;
+        const snapshot = await getDocs(usersQuery);
 
-                if (isMe) {
-                  console.log(
-                    "👤 Found current user:",
-                    data.fullName,
-                    "with",
-                    data.stepsThisLeague,
-                    "steps",
-                  );
-                }
+        const allUsers = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          const isMe = doc.id === userId;
 
-                return {
-                  id: doc.id,
-                  name: data.fullName || "Anonymous",
-                  avatar: data.avatar || "🧑🏻",
-                  steps: data.stepsThisLeague || 0,
-                  totalStepsAllTime: data.totalStepsAllTime || 0,
-                  currentLeague: data.currentLeague || "February 2026",
-                  isCurrentUser: isMe,
-                };
-              });
+          if (isMe) {
+            console.log(
+              "👤 Found current user:",
+              data.fullName,
+              "with",
+              data.stepsThisLeague,
+              "steps",
+            );
+          }
 
-              const currentUserFound = allUsers.some((u) => u.isCurrentUser);
-              console.log("✅ Current user found:", currentUserFound);
+          return {
+            id: doc.id,
+            name: data.fullName || "Anonymous",
+            avatar: data.avatar || "🧑🏻",
+            steps: data.stepsThisLeague || 0,
+            totalStepsAllTime: data.totalStepsAllTime || 0,
+            currentLeague: data.currentLeague || "February 2026",
+            isCurrentUser: isMe,
+          };
+        });
 
-              const sortedUsers = allUsers.sort((a, b) => b.steps - a.steps);
-              const leaguesData = buildLeagues(sortedUsers);
+        const currentUserFound = allUsers.some((u) => u.isCurrentUser);
+        console.log("✅ Current user found:", currentUserFound);
 
-              setLeagues(leaguesData);
-              setIsLoading(false);
-            } catch (error) {
-              console.error("❌ Error processing leaderboard:", error);
-              setIsLoading(false);
-            }
-          },
-          (error) => {
-            console.error("❌ Error fetching leaderboard:", error);
-            setIsLoading(false);
-          },
-        );
-      } catch (error) {
-        console.error("❌ Error setting up listener:", error);
+        const sortedUsers = allUsers.sort((a, b) => b.steps - a.steps);
+        const leaguesData = buildLeagues(sortedUsers);
+
+        setLeagues(leaguesData);
+        setLastFetchTime(Date.now());
         setIsLoading(false);
+
+        // Cache the results
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(leaguesData));
+        console.log("💾 Cached leaderboard data");
+
+        return { success: true, fromCache: false };
+      } catch (error) {
+        console.error("❌ Error fetching leaderboard:", error);
+        setIsLoading(false);
+        return { success: false, error: "Fetch failed" };
       }
-    };
+    },
+    [leagues.length, lastFetchTime, refreshCount, refreshWindowStart],
+  );
 
-    setupListener();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+  // Initial load
+  useEffect(() => {
+    fetchLeaderboard(false);
   }, []);
 
   const userLeague = useMemo(() => {
@@ -162,7 +218,18 @@ export function useLeaderboard() {
     return userLeague?.users.find((u) => u.isCurrentUser);
   }, [userLeague]);
 
-  return { leagues, isLoading, currentUserId, userLeague, userData };
+  return {
+    leagues,
+    isLoading,
+    currentUserId,
+    userLeague,
+    userData,
+    refresh: async () => {
+      const result = await fetchLeaderboard(true, true); // Manual refresh
+      return result;
+    },
+    refreshesRemaining: Math.max(0, REFRESH_LIMIT - refreshCount),
+  };
 }
 
 function buildLeagues(sortedUsers: any[]): League[] {

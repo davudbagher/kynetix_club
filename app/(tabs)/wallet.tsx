@@ -20,6 +20,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,15 +38,33 @@ export default function WalletScreen() {
   const [availableToSpend, setAvailableToSpend] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Refs for scrolling and animation
   const scrollViewRef = useRef<ScrollView>(null);
   const partnersRef = useRef<View>(null);
   const flipAnimation = useRef(new Animated.Value(0)).current;
 
+  // Cache wallet balance (5-min freshness)
+  const WALLET_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
   // Load wallet balance from Firebase - Reload when tab is focused
-  const loadWalletBalance = useCallback(async () => {
+  const loadWalletBalance = useCallback(async (forceRefresh = false) => {
     try {
+      // Check cache first (unless force refresh)
+      if (!forceRefresh) {
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTime;
+
+        if (timeSinceLastFetch < WALLET_CACHE_DURATION && totalEarned > 0) {
+          console.log(
+            `💰 Using cached wallet balance (${Math.floor(timeSinceLastFetch / 1000)}s old)`,
+          );
+          return;
+        }
+      }
+
       console.log("💰 Loading wallet balance...");
       setIsLoading(true);
 
@@ -68,6 +87,7 @@ export default function WalletScreen() {
 
         setTotalEarned(totalSteps);
         setAvailableToSpend(totalSteps - spentSteps);
+        setLastFetchTime(Date.now());
 
         console.log(
           `💰 Wallet loaded: ${totalSteps.toLocaleString()} total, ${(totalSteps - spentSteps).toLocaleString()} available`,
@@ -79,12 +99,25 @@ export default function WalletScreen() {
       console.error("❌ Error loading wallet:", error);
       setIsLoading(false);
     }
-  }, []);
+  }, [lastFetchTime, totalEarned]);
 
-  // Reload wallet data when screen comes into focus
+  // Reload wallet data when screen comes into focus (smart caching!)
   useFocusEffect(
     useCallback(() => {
-      loadWalletBalance();
+      const checkAndLoad = async () => {
+        // Check if we need to force refresh due to redemption
+        const needsRefresh = await AsyncStorage.getItem("wallet_needs_refresh");
+
+        if (needsRefresh === "true") {
+          console.log("🔄 Forcing wallet refresh after redemption");
+          await AsyncStorage.removeItem("wallet_needs_refresh");
+          loadWalletBalance(true); // Force refresh
+        } else {
+          loadWalletBalance(false); // Use 5-min cache logic
+        }
+      };
+
+      checkAndLoad();
     }, [loadWalletBalance]),
   );
 
@@ -126,6 +159,18 @@ export default function WalletScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await loadWalletBalance(true); // Force refresh
+              setRefreshing(false);
+            }}
+            tintColor={Colors.neonLime}
+            colors={[Colors.neonLime]}
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>

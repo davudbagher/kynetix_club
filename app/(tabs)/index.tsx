@@ -14,8 +14,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function HomeScreen() {
   const { todaySteps, isPedometerAvailable } = usePedometer();
   const [stepHistory, setStepHistory] = useState<any[]>([]);
+  const [userName, setUserName] = useState("User");
   const dailyGoal = 10000;
-  const userName = "Davud";
+
+  // Load user name from Firestore
+  useEffect(() => {
+    const loadUserName = async () => {
+      try {
+        const savedUserId = await AsyncStorage.getItem("kynetix_user_id");
+        const userId = savedUserId || auth.currentUser?.uid;
+
+        if (userId) {
+          const userDoc = await getDoc(doc(db, "users", userId));
+          const userData = userDoc.data();
+          if (userData?.fullName) {
+            // Extract first name
+            const firstName = userData.fullName.split(" ")[0];
+            setUserName(firstName);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error loading user name:", error);
+      }
+    };
+    loadUserName();
+  }, []);
 
   // Load step history from Firestore (ONCE on mount)
   useEffect(() => {
