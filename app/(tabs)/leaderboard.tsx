@@ -20,9 +20,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function LeaderboardScreen() {
-  // Get data from hook (includes userLeague and userData!)
-  const { leagues, isLoading, userLeague, userData, refresh, refreshesRemaining } =
-    useLeaderboard();
+  // Get data from hook
+  const { leagues, isLoading, userLeague, userData, refresh, refreshesRemaining } = useLeaderboard();
 
   console.log("🎮 LeaderboardScreen render:", {
     isLoading,
@@ -198,6 +197,84 @@ export default function LeaderboardScreen() {
         )}
       />
     </SafeAreaView>
+  );
+}
+
+// Challenge Leaderboard View Component
+function ChallengeLeaderboardView({ challengeId, refreshing, onRefresh }: { challengeId: string, refreshing: boolean, onRefresh: () => void }) {
+  const { getChallengeLeaderboard } = useChallenges();
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      const data = await getChallengeLeaderboard(challengeId);
+      setLeaderboard(data);
+    };
+    loadLeaderboard();
+  }, [challengeId, getChallengeLeaderboard]);
+
+  if (!leaderboard) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.neonLime} />
+        <Text style={styles.loadingText}>Loading leaderboard...</Text>
+      </View>
+    );
+  }
+
+  const currentUser = leaderboard.users.find((u: any) => u.isCurrentUser);
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.cardContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.neonLime}
+          colors={[Colors.neonLime]}
+        />
+      }
+      style={{ paddingHorizontal: 20 }}
+    >
+      {/* Challenge Leaderboard Header */}
+      <View style={styles.challengeHeader}>
+        <Text style={styles.challengeTitle}>Top Performers</Text>
+        <Text style={styles.challengeSubtitle}>
+          {leaderboard.users.length} participants
+        </Text>
+      </View>
+
+      {/* Users List */}
+      <View style={styles.usersList}>
+        {leaderboard.users.map((user: any) => (
+          <View
+            key={user.userId}
+            style={[
+              styles.userRow,
+              user.isCurrentUser && styles.userRowHighlight,
+            ]}
+          >
+            <Text style={styles.userRank}>{user.rank}</Text>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{user.avatar}</Text>
+            </View>
+            <Text style={styles.userName} numberOfLines={1}>
+              {user.name}
+              {user.isCurrentUser && " 👈"}
+            </Text>
+            <View style={styles.progressContainer}>
+              <Text style={styles.userProgress}>
+                {user.progressPercent}%
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={{ height: 100 }} />
+    </ScrollView>
   );
 }
 
