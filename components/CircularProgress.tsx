@@ -6,12 +6,16 @@ interface CircularProgressProps {
   currentSteps: number;
   goalSteps: number;
   size?: number;
+  trackColor?: string;
+  textColor?: string;
 }
 
 export default function CircularProgress({
   currentSteps,
   goalSteps,
   size = 220,
+  trackColor = Colors.progressTrack,
+  textColor = Colors.textPrimary,
 }: CircularProgressProps) {
   // Calculate progress percentage
   const progress = Math.min((currentSteps / goalSteps) * 100, 100);
@@ -41,9 +45,10 @@ export default function CircularProgress({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={Colors.progressTrack}
+            stroke={trackColor}
             strokeWidth={strokeWidth}
             fill="none"
+            strokeLinecap="round"
           />
 
           {/* Progress circle (fill) */}
@@ -51,7 +56,7 @@ export default function CircularProgress({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={Colors.progressFill}
+            stroke={Colors.neonLime}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={circumference}
@@ -64,8 +69,11 @@ export default function CircularProgress({
 
         {/* Center content */}
         <View style={styles.centerContent}>
-          <Text style={styles.stepCount}>{currentSteps.toLocaleString()}</Text>
-          <Text style={styles.goalText}>/{goalSteps.toLocaleString()} steps</Text>
+          <Text style={[styles.label, { color: textColor ? textColor : Colors.textSecondary, opacity: 0.7 }]}>Today</Text>
+          <Text style={[styles.stepCount, { color: textColor }]}>{currentSteps.toLocaleString()}</Text>
+          <Text style={[styles.goalText, { color: textColor ? textColor : Colors.textTertiary, opacity: 0.7 }]}>
+            of {goalSteps.toLocaleString()} goal
+          </Text>
         </View>
       </View>
 
@@ -95,6 +103,14 @@ const styles = StyleSheet.create({
   centerContent: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  label: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "600",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   stepCount: {
     fontSize: 52,

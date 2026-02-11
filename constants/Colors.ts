@@ -7,9 +7,10 @@
 
 export const Colors = {
   // Brand Colors (Primary Accent)
-  neonLime: "#C6FF00", // Primary accent - neon lime green
-  lightLime: "#E5FF80", // Lighter lime for subtle accents
-  limeShadow: "rgba(198, 255, 0, 0.15)", // Subtle lime glow
+  neonLime: "#C6FF00", // Primary accent - electric lime
+  brandBlue: "#2F54EB", // Premium Fintech Blue (Deep bold blue)
+  lightLime: "#E5FF80", // Lighter lime for backgrounds
+  limeShadow: "rgba(198, 255, 0, 0.25)", // Stronger lime glow
 
   // Light Theme Backgrounds
   background: "#FFFFFF", // Main background - pure white

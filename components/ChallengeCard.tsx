@@ -1,7 +1,7 @@
 // components/ChallengeCard.tsx
 import Colors from '@/constants/Colors';
 import { Challenge, calculateTimeRemaining } from '@/constants/challenges';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -19,19 +19,25 @@ export default function ChallengeCard({
     const [timeRemaining, setTimeRemaining] = useState(calculateTimeRemaining(challenge.endDate));
     const isJoined = userProgress > 0;
 
-    // Update countdown timer every minute
     useEffect(() => {
         const interval = setInterval(() => {
             setTimeRemaining(calculateTimeRemaining(challenge.endDate));
-        }, 60000); // 60 seconds
-
+        }, 60000);
         return () => clearInterval(interval);
     }, [challenge.endDate]);
 
-    // Determine if challenge is ending soon (< 24 hours)
     const isUrgent = timeRemaining.includes('h left') &&
         !timeRemaining.includes('d') &&
         parseInt(timeRemaining) < 24;
+
+    // Helper to get icon name based on challenge type or title if specific icon not provided
+    // Ideally challenge.icon should be an icon name, not emoji.
+    // Assuming challenge.icon might still be emoji, let's map it or just wrap it.
+    // For this redesign, I will force a default icon if it looks like an emoji, or use it if it's text.
+    // Actually, let's render a generic icon based on logic if standard icon is emoji-like.
+    const renderIcon = () => {
+        return <MaterialCommunityIcons name="trophy-outline" size={28} color={Colors.white} />;
+    };
 
     return (
         <TouchableOpacity
@@ -40,266 +46,176 @@ export default function ChallengeCard({
                 challenge.isSponsored && styles.sponsoredContainer,
             ]}
             onPress={onPress}
-            activeOpacity={0.8}
+            activeOpacity={0.9}
         >
-            {/* Sponsor Badge */}
-            {challenge.isSponsored && challenge.sponsor && (
-                <View style={styles.sponsorBadge}>
-                    <Text style={styles.sponsorEmoji}>{challenge.sponsor.logo}</Text>
-                    <Text style={styles.sponsorText}>Sponsored</Text>
-                </View>
-            )}
-
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.icon}>{challenge.icon}</Text>
-                <View style={styles.headerInfo}>
-                    <Text style={styles.title} numberOfLines={2}>
-                        {challenge.title}
-                    </Text>
-                    {challenge.isSponsored && challenge.sponsor?.name && (
-                        <Text style={styles.sponsorName}>by {challenge.sponsor.name}</Text>
-                    )}
-                </View>
-            </View>
-
-            {/* Description */}
-            <Text style={styles.description} numberOfLines={2}>
-                {challenge.description}
-            </Text>
-
-            {/* Progress Bar (if joined) */}
-            {isJoined && (
-                <View style={styles.progressSection}>
-                    <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${userProgress}%` }]} />
+            <View style={styles.mainContent}>
+                {/* Header: Title & Sponsor */}
+                <View style={styles.header}>
+                    <View style={styles.iconBox}>
+                        {renderIcon()}
                     </View>
-                    <Text style={styles.progressText}>{userProgress.toFixed(0)}%</Text>
-                </View>
-            )}
-
-            {/* Footer */}
-            <View style={styles.footer}>
-                <View style={styles.stats}>
-                    <Ionicons name="people" size={14} color={Colors.textSecondary} />
-                    <Text style={styles.statText}>{challenge.participantCount}</Text>
+                    <View style={styles.headerText}>
+                        <Text style={styles.title} numberOfLines={1}>{challenge.title}</Text>
+                        <Text style={styles.subtitle} numberOfLines={1}>
+                            {challenge.isSponsored ? `by ${challenge.sponsor?.name}` : "Official Challenge"}
+                        </Text>
+                    </View>
                 </View>
 
-                {/* Countdown Timer Badge */}
-                <View style={[styles.timerBadge, isUrgent && styles.timerBadgeUrgent]}>
-                    <Ionicons
-                        name="time-outline"
-                        size={12}
-                        color={isUrgent ? '#FF4444' : Colors.neonLime}
-                    />
-                    <Text style={[styles.timerText, isUrgent && styles.timerTextUrgent]}>
-                        {timeRemaining}
-                    </Text>
-                </View>
-            </View>
+                {/* Details Pills Row */}
+                <View style={styles.detailsRow}>
+                    {/* Points Pill */}
+                    <View style={styles.pill}>
+                        <Ionicons name="flash" size={12} color={Colors.neonLime} />
+                        <Text style={styles.pillText}>{challenge.rewardPoints} pts</Text>
+                    </View>
 
-            <View style={styles.footer}>
-                <View style={styles.reward}>
+                    {/* Participants Pill */}
+                    <View style={styles.pill}>
+                        <Ionicons name="people" size={12} color={Colors.textSecondary} />
+                        <Text style={styles.pillText}>{challenge.participantCount}</Text>
+                    </View>
 
-                    <Text style={styles.rewardPoints}>+{challenge.rewardPoints}</Text>
-                    <Text style={styles.rewardBadge}>{challenge.rewardBadge}</Text>
+                    {/* Time Pill */}
+                    <View style={[styles.pill, isUrgent && styles.urgentPill]}>
+                        <Ionicons name="time-outline" size={12} color={isUrgent ? '#FF4444' : Colors.textSecondary} />
+                        <Text style={[styles.pillText, isUrgent && styles.urgentText]}>{timeRemaining}</Text>
+                    </View>
                 </View>
             </View>
 
-            {/* CTA Button */}
+            {/* Floating Action Button */}
             <TouchableOpacity
-                style={[
-                    styles.ctaButton,
-                    isJoined && styles.ctaButtonJoined,
-                    challenge.isSponsored && !isJoined && styles.ctaButtonSponsored,
-                ]}
+                style={[styles.actionButton, isJoined && styles.actionButtonJoined]}
                 onPress={onPress}
-                activeOpacity={0.8}
             >
-                <Text
-                    style={[
-                        styles.ctaText,
-                        isJoined && styles.ctaTextJoined,
-                        challenge.isSponsored && !isJoined && styles.ctaTextSponsored,
-                    ]}
-                >
-                    {isJoined ? 'Continue' : 'Join Challenge'}
-                </Text>
                 <Ionicons
-                    name="arrow-forward"
-                    size={16}
-                    color={isJoined ? Colors.textPrimary : (challenge.isSponsored ? Colors.black : Colors.white)}
+                    name={isJoined ? "arrow-forward" : "add"}
+                    size={24}
+                    color={Colors.white}
                 />
             </TouchableOpacity>
+
+            {/* Bottom Progress Line */}
+            {isJoined && (
+                <View style={styles.progressBarContainer}>
+                    <View style={[styles.progressBarFill, { width: `${userProgress}%` }]} />
+                </View>
+            )}
         </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: Colors.black,
-        borderRadius: 20,
+        backgroundColor: "#1C1C1E", // Charcoal / Premium Dark Grey
+        borderRadius: 28,
         padding: 20,
         marginRight: 16,
-        width: 280,
-        borderWidth: 1,
-        borderColor: Colors.cardGrey,
+        width: 300,
+        height: 150,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+        position: 'relative',
+        justifyContent: 'space-between',
     },
     sponsoredContainer: {
+        borderWidth: 1,
         borderColor: Colors.neonLime,
-        borderWidth: 2,
     },
-    sponsorBadge: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        backgroundColor: Colors.neonLime,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        zIndex: 1,
-    },
-    sponsorEmoji: {
-        fontSize: 12,
-    },
-    sponsorText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: Colors.black,
+    mainContent: {
+        flex: 1,
     },
     header: {
         flexDirection: 'row',
-        marginBottom: 12,
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 12,
     },
-    icon: {
-        fontSize: 36,
-        marginRight: 12,
+    iconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: "rgba(255,255,255,0.1)", // Glassy white
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    headerInfo: {
+    headerText: {
         flex: 1,
+        paddingRight: 40,
     },
     title: {
         fontSize: 18,
         fontWeight: '700',
         color: Colors.white,
-        lineHeight: 24,
         marginBottom: 4,
+        letterSpacing: -0.5,
     },
-    sponsorName: {
+    subtitle: {
         fontSize: 12,
-        color: Colors.neonLime,
-        fontWeight: '600',
-    },
-    description: {
-        fontSize: 14,
         color: Colors.textSecondary,
-        lineHeight: 20,
-        marginBottom: 16,
+        fontWeight: '500',
     },
-    progressSection: {
-        marginBottom: 16,
-    },
-    progressBar: {
-        height: 8,
-        backgroundColor: Colors.cardGrey,
-        borderRadius: 4,
-        overflow: 'hidden',
-        marginBottom: 6,
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: Colors.neonLime,
-        borderRadius: 4,
-    },
-    progressText: {
-        fontSize: 12,
-        color: Colors.neonLime,
-        fontWeight: '700',
-        textAlign: 'right',
-    },
-    footer: {
+    detailsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
+        flexWrap: 'wrap',
+        gap: 8,
     },
-    stats: {
+    pill: {
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    statText: {
-        fontSize: 13,
-        color: Colors.textSecondary,
-        marginLeft: 4,
-        fontWeight: '600',
-    },
-    reward: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    rewardPoints: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: Colors.neonLime,
-    },
-    rewardBadge: {
-        fontSize: 16,
-    },
-    timerBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: Colors.black,
+        backgroundColor: "rgba(255,255,255,0.08)", // Subtle pill bg
+        borderRadius: 20,
         paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: Colors.neonLime + '40',
+        paddingVertical: 6,
+        gap: 4,
     },
-    timerBadgeUrgent: {
-        backgroundColor: '#FF4444' + '20',
-        borderColor: '#FF4444',
-    },
-    timerText: {
+    pillText: {
         fontSize: 11,
-        fontWeight: '700',
-        color: Colors.neonLime,
+        fontWeight: '600',
+        color: Colors.textTertiary,
     },
-    timerTextUrgent: {
-        color: '#FF4444',
+    urgentPill: {
+        backgroundColor: "rgba(255, 68, 68, 0.15)",
     },
-    ctaButton: {
-        backgroundColor: Colors.white,
-        borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        flexDirection: 'row',
+    urgentText: {
+        color: "#FF4444",
+    },
+    actionButton: {
+        position: 'absolute',
+        bottom: 16,
+        right: 16,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: Colors.brandBlue,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
+        shadowColor: Colors.brandBlue,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 6,
     },
-    ctaButtonJoined: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: Colors.cardGrey,
+    actionButtonJoined: {
+        backgroundColor: "#00C2FF",
     },
-    ctaButtonSponsored: {
+    progressBarContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 20,
+        right: 20,
+        height: 3,
+        backgroundColor: "rgba(255,255,255,0.1)",
+        borderTopLeftRadius: 3,
+        borderTopRightRadius: 3,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
         backgroundColor: Colors.neonLime,
-    },
-    ctaText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    ctaTextJoined: {
-        color: Colors.textPrimary,
-    },
-    ctaTextSponsored: {
-        color: Colors.black,
     },
 });

@@ -131,46 +131,62 @@ export default function ActivityScreen() {
     }
   };
 
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.neonLime} />
-        }
-      >
-        <Text style={styles.headerTitle}>Activity</Text>
+    <View style={styles.container}>
+      {/* Blue Top Section */}
+      <View style={styles.topSection}>
+        <SafeAreaView edges={["top"]}>
+          <Text style={styles.headerTitle}>Activity</Text>
+        </SafeAreaView>
+      </View>
 
-        {/* Active Squad Widget - Only show if user has an active squad */}
-        {activeSquad && (
-          <View style={{ marginBottom: 24 }}>
-            <SquadProgressWidget />
+      {/* White Bottom Sheet */}
+      <View style={styles.bottomSheet}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.brandBlue} />
+          }
+        >
+          {/* Active Squad Widget - Only show if user has an active squad */}
+          {activeSquad && (
+            <View style={{ marginBottom: 24 }}>
+              <SquadProgressWidget />
+            </View>
+          )}
+
+          {/* Active Challenges Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Active Challenges</Text>
+              <TouchableOpacity onPress={() => console.log('See all challenges')}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.challengesList}
+              contentContainerStyle={{ paddingRight: 24 }}
+            >
+              {challenges.map((challenge) => (
+                <ChallengeCard
+                  key={challenge.id}
+                  challenge={challenge}
+                  userProgress={challengeProgressMap[challenge.id] || 0}
+                  onPress={() => handleChallengePress(challenge)}
+                />
+              ))}
+            </ScrollView>
           </View>
-        )}
 
-        {/* Active Challenges Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Active Challenges</Text>
-            <TouchableOpacity onPress={() => console.log('See all challenges')}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.challengesList}>
-            {challenges.map((challenge) => (
-              <ChallengeCard
-                key={challenge.id}
-                challenge={challenge}
-                userProgress={challengeProgressMap[challenge.id] || 0}
-                onPress={() => handleChallengePress(challenge)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Removed Recent Activity Feed */}
-      </ScrollView>
+          {/* Activity Feed if needed later */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </View>
 
       {/* Challenge Detail Modal */}
       <ChallengeDetailModal
@@ -180,22 +196,41 @@ export default function ActivityScreen() {
         onClose={() => setModalVisible(false)}
         onJoin={handleJoinChallenge}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.darkGrey,
+    backgroundColor: Colors.brandBlue,
+  },
+  topSection: {
+    backgroundColor: Colors.brandBlue,
+    paddingBottom: 40, // Space for overlap
+    zIndex: 1,
+    paddingHorizontal: 24,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: "bold",
+    fontSize: 34,
+    fontWeight: "800",
     color: Colors.white,
-    marginTop: 20,
+    marginTop: 12,
     marginBottom: 20,
-    paddingHorizontal: 24,
+    letterSpacing: -0.5,
+  },
+  bottomSheet: {
+    flex: 1,
+    backgroundColor: Colors.background, // White
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -32, // Overlap
+    overflow: "hidden", // Clip content to radius
+    zIndex: 2,
+  },
+  scrollContent: {
+    paddingTop: 32, // Content starts after overlap curve
+    paddingBottom: 20,
   },
   section: {
     marginBottom: 32,
@@ -209,13 +244,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: Colors.white,
+    fontWeight: "700",
+    color: Colors.textPrimary,
   },
   seeAllText: {
-    color: Colors.neonLime,
+    color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   challengesList: {
     paddingLeft: 24,

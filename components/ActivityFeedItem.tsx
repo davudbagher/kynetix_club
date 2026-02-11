@@ -111,15 +111,22 @@ export default function ActivityFeedItem({
     );
 }
 
+
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        backgroundColor: Colors.black,
-        borderRadius: 16,
+        backgroundColor: Colors.cardBackground, // White
+        borderRadius: 20,
         padding: 16,
         marginBottom: 12,
+        // Premium shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        elevation: 2,
         borderWidth: 1,
-        borderColor: Colors.cardGrey,
+        borderColor: Colors.border,
     },
     avatar: {
         width: 44,
@@ -141,7 +148,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 15,
         fontWeight: '600',
-        color: Colors.white,
+        color: Colors.textPrimary, // Black
         marginBottom: 4,
         lineHeight: 20,
     },

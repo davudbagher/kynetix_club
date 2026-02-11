@@ -1,5 +1,6 @@
 import Colors from "@/constants/Colors";
 import { useSquads } from "@/hooks/useSquads";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -25,17 +26,18 @@ export default function SquadProgressWidget() {
             <TouchableOpacity
                 style={[styles.container, styles.emptyContainer]}
                 onPress={() => {
-                    // Navigate to Home/Offers to find a squad
                     router.push("/");
                 }}
             >
                 <View style={styles.emptyContent}>
-                    <Text style={styles.emptyTitle}>No Active Squad</Text>
+                    <Ionicons name="people-outline" size={48} color={Colors.textSecondary} style={{ marginBottom: 16 }} />
+                    <Text style={styles.emptyTitle}>No Active Quest</Text>
                     <Text style={styles.emptySubtitle}>
                         Team up with friends to unlock exclusive rewards!
                     </Text>
                     <View style={styles.ctaButton}>
                         <Text style={styles.ctaText}>Find a Quest</Text>
+                        <Ionicons name="arrow-forward" size={16} color={Colors.white} />
                     </View>
                 </View>
             </TouchableOpacity>
@@ -51,129 +53,195 @@ export default function SquadProgressWidget() {
             onPress={() => {
                 router.push("/squad-detail");
             }}
+            activeOpacity={0.9}
         >
             <View style={styles.header}>
-                <Text style={styles.title}>⚔️ Active Quest</Text>
-                <Text style={styles.partner}>{activeSquad.offerPartner}</Text>
+                <View style={styles.badge}>
+                    <MaterialCommunityIcons name="sword-cross" size={14} color={Colors.neonLime} />
+                    <Text style={styles.badgeText}>Active Quest</Text>
+                </View>
+                {/* Partner Name as a subtle text or badge */}
+                <Text style={styles.partnerName}>{activeSquad.offerPartner}</Text>
             </View>
 
-            <Text style={styles.offerTitle}>{activeSquad.offerTitle}</Text>
+            <View style={styles.content}>
+                <Text style={styles.offerTitle}>{activeSquad.offerTitle}</Text>
+
+                <View style={styles.statsRow}>
+                    <View style={styles.pill}>
+                        <Ionicons name="walk" size={14} color={Colors.neonLime} />
+                        <Text style={styles.pillText}>
+                            {activeSquad.currentSteps.toLocaleString()} / {activeSquad.targetSteps.toLocaleString()}
+                        </Text>
+                    </View>
+                </View>
+            </View>
 
             {/* Progress Bar */}
             <View style={styles.progressContainer}>
                 <View style={[styles.progressBar, { width: `${percentage}%` }]} />
             </View>
 
-            <View style={styles.statsRow}>
-                <Text style={styles.stepsText}>
-                    {activeSquad.currentSteps.toLocaleString()} / {activeSquad.targetSteps.toLocaleString()} steps
-                </Text>
-                <Text style={styles.percentageText}>{percentage}%</Text>
-            </View>
+            <View style={styles.footer}>
+                {/* Avatars */}
+                <View style={styles.avatarRow}>
+                    {activeSquad.members.slice(0, 4).map((m, index) => (
+                        <View key={m.userId} style={[styles.avatar, { left: index * 22, zIndex: 10 - index }]}>
+                            {/* Use first letter if no avatar image */}
+                            <Text style={styles.avatarText}>{m.avatar || m.fullName?.charAt(0)}</Text>
+                        </View>
+                    ))}
+                    {activeSquad.members.length > 4 && (
+                        <View style={[styles.avatar, { left: 4 * 22, zIndex: 5, backgroundColor: Colors.border }]}>
+                            <Text style={styles.avatarText}>+{activeSquad.members.length - 4}</Text>
+                        </View>
+                    )}
+                </View>
+                <Text style={styles.membersText}>{activeSquad.members.length} Members</Text>
 
-            {/* Avatars */}
-            <View style={styles.avatarRow}>
-                {activeSquad.members.map((m, index) => (
-                    <View key={m.userId} style={[styles.avatar, { left: index * -10 }]}>
-                        <Text style={{ fontSize: 12 }}>{m.avatar}</Text>
-                    </View>
-                ))}
-                <Text style={[styles.membersText, { marginLeft: (activeSquad.members.length * 16) }]}>
-                    {activeSquad.members.length} Squad Members
-                </Text>
+                <View style={{ flex: 1 }} />
+                <Text style={styles.percentageText}>{percentage}%</Text>
             </View>
         </TouchableOpacity>
     );
 }
 
+
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: Colors.black,
-        borderWidth: 1,
-        borderColor: Colors.neonLime,
-        borderRadius: 16,
-        padding: 16,
-        marginHorizontal: 16,
+        backgroundColor: "#1C1C1E", // Charcoal
+        borderRadius: 28,
+        padding: 24,
+        marginHorizontal: 24,
         marginBottom: 24,
         marginTop: 8,
+        // Premium shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 6,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 4,
+        alignItems: "center",
+        marginBottom: 16,
     },
-    title: {
+    badge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: "rgba(198, 255, 0, 0.1)", // Light Lime bg
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    badgeText: {
         color: Colors.neonLime,
-        fontWeight: 'bold',
+        fontWeight: '700',
         fontSize: 12,
         textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
-    partner: {
+    partnerName: {
         color: Colors.textSecondary,
         fontSize: 12,
+        fontWeight: "600",
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    content: {
+        marginBottom: 16,
     },
     offerTitle: {
         color: Colors.white,
-        fontWeight: 'bold',
-        fontSize: 18,
+        fontWeight: '800',
+        fontSize: 20,
         marginBottom: 12,
+        letterSpacing: -0.5,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    pill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: "rgba(255,255,255,0.1)",
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        gap: 6,
+    },
+    pillText: {
+        color: Colors.textTertiary,
+        fontSize: 13,
+        fontWeight: '600',
     },
     progressContainer: {
-        height: 8,
-        backgroundColor: Colors.cardGrey,
-        borderRadius: 4,
+        height: 6,
+        backgroundColor: "rgba(255,255,255,0.1)",
+        borderRadius: 3,
         overflow: 'hidden',
-        marginBottom: 8,
+        marginBottom: 16,
     },
     progressBar: {
         height: '100%',
         backgroundColor: Colors.neonLime,
+        borderRadius: 3,
     },
-    statsRow: {
+    footer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    stepsText: {
-        color: Colors.textSecondary,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    percentageText: {
-        color: Colors.white,
-        fontWeight: 'bold',
-        fontSize: 12,
+        alignItems: 'center',
     },
     avatarRow: {
         flexDirection: 'row',
         alignItems: 'center',
         position: 'relative',
-        height: 24,
+        height: 32,
+        width: 100, // Fixed width to accommodate stack (32 + 22*3 approx)
+        marginRight: 8,
     },
     avatar: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: Colors.cardGrey,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: Colors.black,
+        borderColor: "#1C1C1E", // Match container bg
         position: 'absolute',
+    },
+    avatarText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: Colors.white,
     },
     membersText: {
         color: Colors.textSecondary,
-        fontSize: 12,
-        marginLeft: 4,
+        fontSize: 13,
+        fontWeight: "500",
+        marginLeft: 0, // Reset margin since row has width styling now
     },
+    percentageText: {
+        color: Colors.neonLime,
+        fontWeight: '800',
+        fontSize: 16,
+    },
+
+    // Empty State
     emptyContainer: {
+        backgroundColor: "#1C1C1E",
         borderStyle: 'dashed',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 32,
+        borderWidth: 2,
+        borderColor: "rgba(255,255,255,0.2)",
     },
     emptyContent: {
         alignItems: 'center',
+        paddingVertical: 16,
     },
     emptyTitle: {
         color: Colors.white,
@@ -185,18 +253,21 @@ const styles = StyleSheet.create({
         color: Colors.textSecondary,
         fontSize: 14,
         textAlign: 'center',
-        marginBottom: 16,
-        paddingHorizontal: 20,
+        marginBottom: 20,
+        lineHeight: 20,
     },
     ctaButton: {
-        backgroundColor: Colors.neonLime,
+        backgroundColor: Colors.brandBlue,
         paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
+        paddingVertical: 12,
+        borderRadius: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     ctaText: {
-        color: Colors.black,
-        fontWeight: 'bold',
+        color: Colors.white,
+        fontWeight: '700',
         fontSize: 14,
     },
 });
