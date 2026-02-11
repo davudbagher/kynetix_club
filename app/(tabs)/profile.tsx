@@ -1,4 +1,5 @@
 import BadgeModal from "@/components/BadgeModal";
+import StoryTemplateGenerator from "@/components/StoryTemplateGenerator";
 import VirtualTreesModal from "@/components/VirtualTreesModal";
 import { db } from "@/config/firebase";
 import Colors from "@/constants/Colors";
@@ -182,6 +183,21 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Share Story */}
+        <View style={styles.shareSection}>
+          <Text style={styles.sectionLabel}>SHARE YOUR ACHIEVEMENT</Text>
+          <StoryTemplateGenerator
+            userStats={{
+              steps: userData.totalStepsAllTime,
+              distance: (userData.totalStepsAllTime * 0.0007).toFixed(1),
+              league: league.name,
+              rank: 23, // Could be fetched from leaderboard
+              name: userData.fullName.split(' ')[0],
+              avatar: userData.avatar,
+            }}
+          />
+        </View>
+
         {/* Badges */}
         <View style={styles.badgesSection}>
           <Text style={styles.sectionLabel}>BADGES</Text>
@@ -330,6 +346,7 @@ const styles = StyleSheet.create({
   infoButtonText: { fontSize: 14 },
 
   leagueSection: { paddingHorizontal: 24, marginBottom: 40 },
+  shareSection: { paddingHorizontal: 24, marginBottom: 40 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: "600",
