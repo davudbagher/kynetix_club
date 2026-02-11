@@ -10,6 +10,7 @@ import {
   getUnlockedBadges,
 } from "@/constants/badges";
 import { getUserLeague } from "@/constants/leagues";
+import { useFriends } from "@/hooks/useFriends";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -43,6 +44,9 @@ export default function ProfileScreen() {
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
 
+  // Friends hook
+  const { friends, fetchFriends, loading: friendsLoading } = useFriends();
+
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -59,6 +63,10 @@ export default function ProfileScreen() {
         if (userDoc.exists()) {
           setUserData(userDoc.data() as UserData);
         }
+
+        // Fetch friends list
+        await fetchFriends(userId);
+
         setIsLoading(false);
       } catch (error) {
         console.error("Error loading profile:", error);
@@ -66,7 +74,7 @@ export default function ProfileScreen() {
       }
     };
     loadUserData();
-  }, []);
+  }, [fetchFriends]);
 
   // Calculate badges
   const unlockedBadges = userData ? getUnlockedBadges(userData) : [];
@@ -126,12 +134,20 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity
-            onPress={() => router.push("/settings")}
-            style={styles.settingsButton}
-          >
-            <Text style={styles.settingsIcon}>⚙️</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              onPress={() => router.push("/find-friends")}
+              style={styles.iconButton}
+            >
+              <Text style={styles.iconButtonText}>👥</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/settings")}
+              style={styles.iconButton}
+            >
+              <Text style={styles.iconButtonText}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Avatar & Name */}
@@ -167,6 +183,50 @@ export default function ProfileScreen() {
               <Text style={styles.infoButtonText}>ℹ️</Text>
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* Friends Section */}
+        <View style={styles.friendsSection}>
+          <View style={styles.friendsHeader}>
+            <Text style={styles.sectionLabel}>FRIENDS</Text>
+            <Text style={styles.friendsCount}>
+              {friends.length} {friends.length === 1 ? 'Friend' : 'Friends'}
+            </Text>
+          </View>
+
+          {friends.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.friendsList}
+            >
+              {friends.map((friend: any) => (
+                <TouchableOpacity
+                  key={friend.id}
+                  style={styles.friendCard}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.friendAvatar}>
+                    <Text style={styles.friendAvatarText}>{friend.avatar || '👤'}</Text>
+                  </View>
+                  <Text style={styles.friendName} numberOfLines={1}>
+                    {friend.fullName || 'Friend'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyFriendsContainer}>
+              <Text style={styles.emptyFriendsEmoji}>👥</Text>
+              <Text style={styles.emptyFriendsText}>No friends yet</Text>
+              <TouchableOpacity
+                style={styles.addFriendsButton}
+                onPress={() => router.push("/find-friends")}
+              >
+                <Text style={styles.addFriendsButtonText}>Find Friends</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* League */}
@@ -269,7 +329,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   title: { fontSize: 36, fontWeight: "bold", color: Colors.white },
-  settingsButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iconButton: {
     width: 44,
     height: 44,
     justifyContent: "center",
@@ -277,7 +341,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.black,
     borderRadius: 22,
   },
-  settingsIcon: { fontSize: 22 },
+  iconButtonText: { fontSize: 22 },
 
   profileSection: {
     alignItems: "center",
@@ -371,6 +435,74 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   leagueSteps: { fontSize: 14, color: Colors.lightGrey },
+
+  friendsSection: { paddingHorizontal: 24, marginBottom: 40 },
+  friendsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  friendsCount: {
+    fontSize: 13,
+    color: Colors.neonLime,
+    fontWeight: '600',
+  },
+  friendsList: {
+    gap: 12,
+    paddingRight: 24,
+  },
+  friendCard: {
+    backgroundColor: Colors.black,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    width: 100,
+  },
+  friendAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.cardGrey,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  friendAvatarText: {
+    fontSize: 28,
+  },
+  friendName: {
+    fontSize: 13,
+    color: Colors.white,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptyFriendsContainer: {
+    backgroundColor: Colors.black,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyFriendsEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyFriendsText: {
+    fontSize: 16,
+    color: Colors.lightGrey,
+    marginBottom: 20,
+  },
+  addFriendsButton: {
+    backgroundColor: Colors.neonLime,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  addFriendsButtonText: {
+    color: Colors.black,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
 
   badgesSection: { paddingHorizontal: 24, marginBottom: 40 },
   badgesGrid: {

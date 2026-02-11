@@ -43,9 +43,9 @@ export default function ChallengeCard({
             activeOpacity={0.8}
         >
             {/* Sponsor Badge */}
-            {challenge.isSponsored && (
+            {challenge.isSponsored && challenge.sponsor && (
                 <View style={styles.sponsorBadge}>
-                    <Text style={styles.sponsorEmoji}>{challenge.sponsorLogo}</Text>
+                    <Text style={styles.sponsorEmoji}>{challenge.sponsor.logo}</Text>
                     <Text style={styles.sponsorText}>Sponsored</Text>
                 </View>
             )}
@@ -57,8 +57,8 @@ export default function ChallengeCard({
                     <Text style={styles.title} numberOfLines={2}>
                         {challenge.title}
                     </Text>
-                    {challenge.isSponsored && challenge.sponsorName && (
-                        <Text style={styles.sponsorName}>by {challenge.sponsorName}</Text>
+                    {challenge.isSponsored && challenge.sponsor?.name && (
+                        <Text style={styles.sponsorName}>by {challenge.sponsor.name}</Text>
                     )}
                 </View>
             </View>

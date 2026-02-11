@@ -1,11 +1,13 @@
 // app/user-profile.tsx
 import ActivityFeedItem from '@/components/ActivityFeedItem';
-import Colors from '@/constants/Colors';
 import { getAllBadgesWithStatus } from '@/constants/achievements';
+import Colors from '@/constants/Colors';
 import { getActivities } from '@/constants/mockActivityData';
 import { getUserProfileByName } from '@/constants/mockUserData';
+import { useFriends } from '@/hooks/useFriends';
 import { formatStepCount, getAvatarColor, getAvatarLetter } from '@/utils/activityHelpers';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -23,6 +25,13 @@ export default function UserProfileScreen() {
     const profile = getUserProfileByName(userName || '');
 
     const [isFriend, setIsFriend] = useState(profile?.isFriend || false);
+    const [requestSent, setRequestSent] = useState(false);
+    const { sendFriendRequest } = useFriends();
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        AsyncStorage.getItem("kynetix_user_id").then(setCurrentUserId);
+    }, []);
 
     if (!profile) {
         return (
@@ -56,10 +65,19 @@ export default function UserProfileScreen() {
         a => a.userName === profile.fullName
     ).slice(0, 5);
 
-    const handleAddFriend = () => {
+    const handleAddFriend = async () => {
+        if (!currentUserId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setIsFriend(!isFriend);
-        // TODO: Save to Firebase
+
+        // In a real app we'd use the actual profile.id from Firestore
+        // For this demo/mock hybrid, we'll simulate the request success visually
+        // const success = await sendFriendRequest(currentUserId, profile.id);
+
+        setRequestSent(true);
+        // setIsFriend(true); // Don't set isFriend immediately, wait for accept
+
+        // Mock feedback for now since we are mixing mock data with real hooks
+        // In fully integrated app: if (success) setRequestSent(true);
     };
 
     return (
@@ -90,17 +108,24 @@ export default function UserProfileScreen() {
 
                     {/* Add Friend Button */}
                     <TouchableOpacity
-                        style={[styles.friendButton, isFriend && styles.friendButtonActive]}
+                        style={[
+                            styles.friendButton,
+                            (isFriend || requestSent) && styles.friendButtonActive
+                        ]}
                         onPress={handleAddFriend}
                         activeOpacity={0.8}
+                        disabled={isFriend || requestSent}
                     >
                         <Ionicons
-                            name={isFriend ? 'checkmark-circle' : 'person-add'}
+                            name={isFriend ? 'checkmark-circle' : (requestSent ? 'time' : 'person-add')}
                             size={18}
-                            color={isFriend ? Colors.black : Colors.white}
+                            color={(isFriend || requestSent) ? Colors.black : Colors.white}
                         />
-                        <Text style={[styles.friendButtonText, isFriend && styles.friendButtonTextActive]}>
-                            {isFriend ? 'Friends' : 'Add Friend'}
+                        <Text style={[
+                            styles.friendButtonText,
+                            (isFriend || requestSent) && styles.friendButtonTextActive
+                        ]}>
+                            {isFriend ? 'Friends' : (requestSent ? 'Requested' : 'Add Friend')}
                         </Text>
                     </TouchableOpacity>
                 </View>

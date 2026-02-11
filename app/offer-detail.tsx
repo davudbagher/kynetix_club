@@ -1,3 +1,4 @@
+import CreateSquadModal from "@/components/squad/CreateSquadModal";
 import Colors from "@/constants/Colors";
 import {
   getOfferById,
@@ -23,6 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+
 export default function OfferDetailScreen() {
   const { offerId } = useLocalSearchParams<{ offerId: string }>();
 
@@ -32,6 +34,7 @@ export default function OfferDetailScreen() {
   );
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [showSquadModal, setShowSquadModal] = useState(false);
 
   // Get offer and partner data
   const offer = getOfferById(offerId);
@@ -253,6 +256,14 @@ export default function OfferDetailScreen() {
         {/* Fixed Bottom Button */}
         <View style={styles.bottomBar}>
           <TouchableOpacity
+            style={styles.squadButton}
+            onPress={() => setShowSquadModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.squadButtonText}>Squad Up & Save Additional 20% 👯‍♂️</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[
               styles.redeemButton,
               (!canAfford || isRedeeming) && styles.redeemButtonDisabled,
@@ -270,6 +281,17 @@ export default function OfferDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        <CreateSquadModal
+          visible={showSquadModal}
+          onClose={() => setShowSquadModal(false)}
+          offer={{
+            id: offer.id,
+            title: offer.title,
+            partnerName: partner.name,
+            targetSteps: offer.steps_required * 2 // Mock target: 2x individual
+          }}
+        />
       </SafeAreaView>
     </>
   );
@@ -475,4 +497,18 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Colors.black,
   },
+  squadButton: {
+    backgroundColor: Colors.black,
+    borderWidth: 1,
+    borderColor: Colors.neonLime,
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  squadButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.neonLime
+  }
 });

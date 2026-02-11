@@ -11,6 +11,8 @@ import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+
+
 export default function HomeScreen() {
   const { todaySteps, isPedometerAvailable } = usePedometer();
   const [stepHistory, setStepHistory] = useState<any[]>([]);
@@ -112,6 +114,8 @@ export default function HomeScreen() {
             <Text style={styles.userName}>{userName}</Text>
           </View>
         </View>
+
+
 
         <View style={styles.progressSection}>
           <CircularProgress currentSteps={todaySteps} goalSteps={dailyGoal} />
