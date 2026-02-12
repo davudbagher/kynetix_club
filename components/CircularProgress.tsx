@@ -8,6 +8,10 @@ interface CircularProgressProps {
   size?: number;
   trackColor?: string;
   textColor?: string;
+  topLabel?: string;
+  bottomLabel?: string;
+  showMotivationalText?: boolean;
+  mainText?: string;
 }
 
 export default function CircularProgress({
@@ -16,6 +20,10 @@ export default function CircularProgress({
   size = 220,
   trackColor = Colors.progressTrack,
   textColor = Colors.textPrimary,
+  topLabel = "Today",
+  bottomLabel,
+  showMotivationalText = true,
+  mainText,
 }: CircularProgressProps) {
   // Calculate progress percentage
   const progress = Math.min((currentSteps / goalSteps) * 100, 100);
@@ -69,16 +77,18 @@ export default function CircularProgress({
 
         {/* Center content */}
         <View style={styles.centerContent}>
-          <Text style={[styles.label, { color: textColor ? textColor : Colors.textSecondary, opacity: 0.7 }]}>Today</Text>
-          <Text style={[styles.stepCount, { color: textColor }]}>{currentSteps.toLocaleString()}</Text>
+          <Text style={[styles.label, { color: textColor ? textColor : Colors.textSecondary, opacity: 0.7 }]}>{topLabel}</Text>
+          <Text style={[styles.stepCount, { color: textColor, fontSize: mainText && mainText.length > 8 ? 32 : 52 }]}>
+            {mainText ? mainText : currentSteps.toLocaleString()}
+          </Text>
           <Text style={[styles.goalText, { color: textColor ? textColor : Colors.textTertiary, opacity: 0.7 }]}>
-            of {goalSteps.toLocaleString()} goal
+            {bottomLabel ? bottomLabel : `of ${goalSteps.toLocaleString()} goal`}
           </Text>
         </View>
       </View>
 
       {/* Motivational message below circle */}
-      <Text style={styles.motivationalText}>{getMotivationalMessage()}</Text>
+      {showMotivationalText && <Text style={[styles.motivationalText, { color: textColor }]}>{getMotivationalMessage()}</Text>}
     </View>
   );
 }

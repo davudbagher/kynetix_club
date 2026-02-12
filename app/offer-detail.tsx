@@ -1,3 +1,4 @@
+import CircularProgress from "@/components/CircularProgress";
 import CreateSquadModal from "@/components/squad/CreateSquadModal";
 import Colors from "@/constants/Colors";
 import {
@@ -16,6 +17,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +26,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// Mock Avatars for Social Proof
+const avatars = [
+  "https://i.pravatar.cc/100?img=1",
+  "https://i.pravatar.cc/100?img=5",
+  "https://i.pravatar.cc/100?img=8",
+];
 
 export default function OfferDetailScreen() {
   const { offerId } = useLocalSearchParams<{ offerId: string }>();
@@ -138,146 +146,138 @@ export default function OfferDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "Offer Details",
-          headerStyle: { backgroundColor: Colors.darkGrey },
-          headerTintColor: Colors.white,
-          headerShadowVisible: false,
+          headerShown: false, // Custom header
         }}
       />
 
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Custom Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Details</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Offer Header */}
-          <View style={styles.header}>
-            <Text style={styles.offerIcon}>{offer.image}</Text>
-            <Text style={styles.offerTitle}>{offer.title}</Text>
 
-            {/* Partner Badge */}
-            <TouchableOpacity
-              style={styles.partnerBadge}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.partnerLogo}>{partner.logo}</Text>
-              <Text style={styles.partnerName}>{partner.name}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Cost Section */}
-          <View style={styles.costCard}>
-            <Text style={styles.costLabel}>Costs</Text>
-            <Text style={styles.costAmount}>
-              {offer.steps_required.toLocaleString()}
-            </Text>
-            <Text style={styles.costSteps}>steps</Text>
-
-            {offer.discount_percentage && (
-              <View style={styles.discountBadge}>
-                <Text style={styles.discountText}>
-                  {offer.discount_percentage}% OFF
-                </Text>
+          {/* Main White Card */}
+          <View style={styles.whiteCard}>
+            {/* Offer Header within White Card */}
+            <View style={styles.offerHeader}>
+              <View style={styles.offerIconContainer}>
+                <Text style={styles.offerIcon}>{offer.image}</Text>
               </View>
-            )}
-          </View>
+              <View style={styles.offerHeaderText}>
+                <Text style={styles.offerTitle}>{offer.title}</Text>
+                <View style={styles.partnerRow}>
+                  <Text style={styles.partnerName}>{partner.name}</Text>
+                  {!!offer.discount_percentage && (
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountText}>{offer.discount_percentage}% OFF</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
 
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About This Offer</Text>
+            {/* Circular Progress Section */}
+            <View style={styles.progressSection}>
+              <View style={styles.progressInfo}>
+                <Text style={styles.progressLabel}>Active Until</Text>
+                <Text style={styles.progressDate}>{offer.expires_at || "Forever"}</Text>
+
+                <View style={styles.statusChips}>
+                  <View style={[styles.chip, { backgroundColor: Colors.neonLime }]}>
+                    <Text style={styles.chipText}>Available</Text>
+                  </View>
+                  <View style={[styles.chip, { backgroundColor: Colors.brandBlue }]}>
+                    <Text style={[styles.chipText, { color: Colors.white }]}>Offer</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.circularProgressWrapper}>
+                <CircularProgress
+                  currentSteps={Math.min(walletBalance?.availableToSpend || 0, offer.steps_required)}
+                  goalSteps={offer.steps_required}
+                  size={200}
+                  trackColor="#F0F0F0"
+                  textColor={Colors.textPrimary}
+                  topLabel="Step Progress"
+                  mainText={`${(walletBalance?.availableToSpend || 0).toLocaleString()} / ${offer.steps_required.toLocaleString()}`}
+                  bottomLabel="to redeem"
+                  showMotivationalText={false}
+                />
+              </View>
+            </View>
+
+            {/* Social Proof */}
+            <View style={styles.socialProof}>
+              <View style={styles.avatarStack}>
+                {avatars.map((uri, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri }}
+                    style={[styles.smallAvatar, { marginLeft: index > 0 ? -10 : 0, zIndex: 3 - index }]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.claimedText}>
+                {offer.redemption_count}+ claimed recently
+              </Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.sectionTitle}>Details</Text>
             <Text style={styles.description}>{offer.description}</Text>
+
+            {/* Spacer for bottom bar */}
+            <View style={{ height: 100 }} />
           </View>
-
-          {/* Stats */}
-          <View style={styles.statsSection}>
-            <View style={styles.statCard}>
-              <Ionicons name="people" size={20} color={Colors.neonLime} />
-              <Text style={styles.statValue}>{offer.redemption_count}</Text>
-              <Text style={styles.statLabel}>Redeemed</Text>
-            </View>
-
-            {offer.expires_at && (
-              <View style={styles.statCard}>
-                <Ionicons name="time" size={20} color={Colors.neonLime} />
-                <Text style={styles.statValue}>Limited</Text>
-                <Text style={styles.statLabel}>Expires {offer.expires_at}</Text>
-              </View>
-            )}
-
-            {!offer.expires_at && (
-              <View style={styles.statCard}>
-                <Ionicons name="infinite" size={20} color={Colors.neonLime} />
-                <Text style={styles.statValue}>Lifelong</Text>
-                <Text style={styles.statLabel}>Never expires</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Your Balance */}
-          {isLoadingBalance ? (
-            <View style={styles.balanceSection}>
-              <ActivityIndicator size="small" color={Colors.neonLime} />
-              <Text style={styles.balanceLabel}>Loading balance...</Text>
-            </View>
-          ) : walletBalance ? (
-            <View style={styles.balanceSection}>
-              <Text style={styles.balanceLabel}>Your available steps</Text>
-              <Text
-                style={[
-                  styles.balanceAmount,
-                  !canAfford && styles.balanceInsufficient,
-                ]}
-              >
-                {walletBalance.availableToSpend.toLocaleString()}
-              </Text>
-              {!canAfford && (
-                <Text style={styles.balanceWarning}>
-                  ⚠️ Need{" "}
-                  {(
-                    offer.steps_required - walletBalance.availableToSpend
-                  ).toLocaleString()}{" "}
-                  more steps
-                </Text>
-              )}
-            </View>
-          ) : (
-            <View style={styles.balanceSection}>
-              <Text style={styles.balanceLabel}>
-                Unable to load balance
-              </Text>
-            </View>
-          )}
-
-          {/* Bottom spacing */}
-          <View style={{ height: 120 }} />
         </ScrollView>
 
-        {/* Fixed Bottom Button */}
-        <View style={styles.bottomBar}>
+        {/* Bottom Bar (Overlapping or Fixed) */}
+        <View style={styles.bottomBarContainer}>
+          {/* Squad Button */}
           <TouchableOpacity
             style={styles.squadButton}
             onPress={() => setShowSquadModal(true)}
-            activeOpacity={0.8}
           >
-            <Text style={styles.squadButtonText}>Squad Up & Save Additional 20% 👯‍♂️</Text>
+            <Ionicons name="people" size={24} color={Colors.neonLime} />
+            <View>
+              <Text style={styles.squadTitle}>Start Squad</Text>
+              <Text style={styles.squadSubtitle}>Save 20%</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
 
+          {/* Redeem Button */}
           <TouchableOpacity
             style={[
               styles.redeemButton,
-              (!canAfford || isRedeeming) && styles.redeemButtonDisabled,
+              (!canAfford || isRedeeming) && styles.redeemButtonDisabled
             ]}
             onPress={handleRedeem}
-            activeOpacity={0.8}
-            disabled={!canAfford || isRedeeming || isLoadingBalance}
+            disabled={!canAfford || isRedeeming}
           >
             {isRedeeming ? (
-              <ActivityIndicator size="small" color={Colors.black} />
+              <ActivityIndicator color={Colors.black} />
             ) : (
-              <Text style={styles.redeemButtonText}>
-                {canAfford ? "🎉 Redeem Now" : "🚶 Walk More to Redeem"}
-              </Text>
+              <>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={styles.redeemTitle}>Redeem Offer</Text>
+                  <Text style={styles.redeemSubtitle}>
+                    {canAfford ? "You have enough steps!" : `${(offer.steps_required - (walletBalance?.availableToSpend || 0)).toLocaleString()} more needed`}
+                  </Text>
+                </View>
+              </>
             )}
           </TouchableOpacity>
         </View>
@@ -289,7 +289,7 @@ export default function OfferDetailScreen() {
             id: offer.id,
             title: offer.title,
             partnerName: partner.name,
-            targetSteps: offer.steps_required * 2 // Mock target: 2x individual
+            targetSteps: offer.steps_required * 2
           }}
         />
       </SafeAreaView>
@@ -297,218 +297,257 @@ export default function OfferDetailScreen() {
   );
 }
 
-// ============================================
-// STYLES
-// ============================================
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.darkGrey,
+    backgroundColor: Colors.brandBlue,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  backButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.white,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 10,
     paddingBottom: 20,
   },
-  errorText: {
-    color: Colors.white,
-    fontSize: 16,
-    textAlign: "center",
-    marginTop: 40,
-  },
 
-  // Header
-  header: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 32,
+
+  // White Card
+  whiteCard: {
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    borderRadius: 32,
+    padding: 24,
+    paddingTop: 32,
+    marginTop: 20,
+    minHeight: 500,
+  },
+  offerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  offerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.black,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
   offerIcon: {
-    fontSize: 80,
-    marginBottom: 16,
+    fontSize: 30,
+  },
+  offerHeaderText: {
+    flex: 1,
   },
   offerTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: Colors.white,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  partnerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.black,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-  },
-  partnerLogo: {
     fontSize: 20,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  partnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   partnerName: {
     fontSize: 14,
-    fontWeight: "600",
-    color: Colors.white,
-  },
-
-  // Cost Card
-  costCard: {
-    marginHorizontal: 20,
-    backgroundColor: Colors.black,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: Colors.neonLime,
-  },
-  costLabel: {
-    fontSize: 14,
-    color: Colors.lightGrey,
-    marginBottom: 8,
-  },
-  costAmount: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: Colors.neonLime,
-    letterSpacing: -2,
-  },
-  costSteps: {
-    fontSize: 16,
-    color: Colors.lightGrey,
-    marginBottom: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   discountBadge: {
     backgroundColor: Colors.neonLime,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginTop: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   discountText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: Colors.black,
+    fontSize: 10,
+    fontWeight: '800',
   },
 
-  // Section
-  section: {
-    paddingHorizontal: 20,
+  // Circular Progress Section
+  progressSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
-  sectionTitle: {
+  progressInfo: {
+    flex: 1,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  progressDate: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.white,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
+  statusChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  circularProgressWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Social Proof
+  socialProof: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: "#F5F7FA",
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  avatarStack: {
+    flexDirection: 'row',
+    marginRight: 12,
+    paddingLeft: 4,
+  },
+  smallAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.white,
+    backgroundColor: '#DDD',
+  },
+  claimedText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
   description: {
-    fontSize: 15,
-    color: Colors.lightGrey,
+    fontSize: 14,
+    color: Colors.textSecondary,
     lineHeight: 22,
   },
 
-  // Stats
-  statsSection: {
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.black,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.cardGrey,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.white,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: Colors.lightGrey,
-    textAlign: "center",
-  },
-
-  // Balance Section
-  balanceSection: {
-    marginHorizontal: 20,
-    backgroundColor: Colors.black,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.cardGrey,
-  },
-  balanceLabel: {
-    fontSize: 13,
-    color: Colors.lightGrey,
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: Colors.neonLime,
-  },
-  balanceInsufficient: {
-    color: Colors.lightGrey,
-  },
-  balanceWarning: {
-    fontSize: 12,
-    color: Colors.warning,
-    marginTop: 8,
-  },
-
-  // Bottom Bar
-  bottomBar: {
-    position: "absolute",
+  // Bottom Buttons
+  bottomBarContainer: {
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.darkGrey,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: Colors.cardGrey,
-  },
-  redeemButton: {
-    backgroundColor: Colors.neonLime,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  redeemButtonDisabled: {
-    backgroundColor: Colors.cardGrey,
-  },
-  redeemButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.black,
+    paddingBottom: 30, // Safe area
+    paddingTop: 20,
+    backgroundColor: 'transparent', // Let background show through if needed, or white gradient
   },
   squadButton: {
-    backgroundColor: Colors.black,
-    borderWidth: 1,
-    borderColor: Colors.neonLime,
-    paddingVertical: 12,
-    borderRadius: 16,
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.textPrimary, // Charcoal/Black
+    padding: 16,
+    borderRadius: 20,
     marginBottom: 12,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  squadButtonText: {
+  squadTitle: {
     fontSize: 14,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  squadSubtitle: {
+    fontSize: 12,
+    color: Colors.neonLime,
+    fontWeight: '600',
+  },
+  redeemButton: {
+    backgroundColor: Colors.neonLime, // Brand Yellow/Green
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 24,
+    height: 72,
+    // Shadow
+    shadowColor: Colors.neonLime,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  redeemButtonDisabled: {
+    backgroundColor: Colors.lightGrey,
+    shadowOpacity: 0,
+  },
+  redeemTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.black, // Dark text for contrast on lime
+  },
+  redeemSubtitle: {
+    fontSize: 11,
+    color: 'rgba(0,0,0,0.6)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  priceTag: {
+    backgroundColor: 'rgba(0,0,0,0.1)', // Subtle dark background
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  priceText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.black,
+  },
+  errorText: {
+    color: Colors.white,
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 20,
     fontWeight: 'bold',
-    color: Colors.neonLime
-  }
+  },
 });
