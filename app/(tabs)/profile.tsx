@@ -5,12 +5,12 @@ import { db } from "@/config/firebase";
 import Colors from "@/constants/Colors";
 import {
   Badge,
-  BADGES,
   getLockedBadges,
-  getUnlockedBadges,
+  getUnlockedBadges
 } from "@/constants/badges";
 import { getUserLeague } from "@/constants/leagues";
 import { useFriends } from "@/hooks/useFriends";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -39,20 +39,18 @@ export default function ProfileScreen() {
   // ALL HOOKS AT TOP
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [savedUserId, setSavedUserId] = useState<string>("");
   const [showTreesModal, setShowTreesModal] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
 
   // Friends hook
-  const { friends, fetchFriends, loading: friendsLoading } = useFriends();
+  const { friends, fetchFriends } = useFriends();
 
   useEffect(() => {
     const loadUserData = async () => {
       try {
         setIsLoading(true);
         const userId = await AsyncStorage.getItem("kynetix_user_id");
-        setSavedUserId(userId || "");
 
         if (!userId) {
           setIsLoading(false);
@@ -94,28 +92,40 @@ export default function ProfileScreen() {
   const getMemberSince = () => {
     if (!userData?.createdAt) return "Recently";
     const date = new Date(userData.createdAt.seconds * 1000);
-    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.neonLime} />
+      <View style={styles.container}>
+        <View style={styles.topSection}>
+          <SafeAreaView edges={["top"]}>
+            <Text style={styles.headerTitle}>Profile</Text>
+          </SafeAreaView>
         </View>
-      </SafeAreaView>
+        <View style={styles.bottomSheet}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.brandBlue} />
+          </View>
+        </View>
+      </View>
     );
   }
 
   if (!userData) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Profile not found</Text>
+      <View style={styles.container}>
+        <View style={styles.topSection}>
+          <SafeAreaView edges={["top"]}>
+            <Text style={styles.headerTitle}>Profile</Text>
+          </SafeAreaView>
         </View>
-      </SafeAreaView>
+        <View style={styles.bottomSheet}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.errorText}>Profile not found</Text>
+          </View>
+        </View>
+      </View>
     );
   }
 
@@ -124,176 +134,158 @@ export default function ProfileScreen() {
   const memberSince = getMemberSince();
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <View style={styles.container}>
       <StatusBar style="light" />
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              onPress={() => router.push("/find-friends")}
-              style={styles.iconButton}
-            >
-              <Text style={styles.iconButtonText}>👥</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push("/settings")}
-              style={styles.iconButton}
-            >
-              <Text style={styles.iconButtonText}>⚙️</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Avatar & Name */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatar}>{userData.avatar}</Text>
-          </View>
-          <Text style={styles.name}>{userData.fullName}</Text>
-          <Text style={styles.memberSince}>Member since {memberSince}</Text>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsSection}>
-          <TouchableOpacity style={styles.statCard} activeOpacity={1}>
-            <Text style={styles.statEmoji}>🚶</Text>
-            <Text style={styles.statValue}>
-              {userData.totalStepsAllTime.toLocaleString()}
-            </Text>
-            <Text style={styles.statLabel}>Steps</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.statCard, styles.statCardHighlight]}
-            onPress={() => setShowTreesModal(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.statEmoji}>🌳</Text>
-            <Text style={[styles.statValue, styles.statValueHighlight]}>
-              {trees.toLocaleString()}
-            </Text>
-            <Text style={styles.statLabel}>Trees</Text>
-            <View style={styles.infoButton}>
-              <Text style={styles.infoButtonText}>ℹ️</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Friends Section */}
-        <View style={styles.friendsSection}>
-          <View style={styles.friendsHeader}>
-            <Text style={styles.sectionLabel}>FRIENDS</Text>
-            <Text style={styles.friendsCount}>
-              {friends.length} {friends.length === 1 ? 'Friend' : 'Friends'}
-            </Text>
-          </View>
-
-          {friends.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.friendsList}
-            >
-              {friends.map((friend: any) => (
-                <TouchableOpacity
-                  key={friend.id}
-                  style={styles.friendCard}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.friendAvatar}>
-                    <Text style={styles.friendAvatarText}>{friend.avatar || '👤'}</Text>
-                  </View>
-                  <Text style={styles.friendName} numberOfLines={1}>
-                    {friend.fullName || 'Friend'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.emptyFriendsContainer}>
-              <Text style={styles.emptyFriendsEmoji}>👥</Text>
-              <Text style={styles.emptyFriendsText}>No friends yet</Text>
-              <TouchableOpacity
-                style={styles.addFriendsButton}
-                onPress={() => router.push("/find-friends")}
-              >
-                <Text style={styles.addFriendsButtonText}>Find Friends</Text>
+      {/* Top Blue Section */}
+      <View style={styles.topSection}>
+        <SafeAreaView edges={["top"]}>
+          {/* Header Row */}
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={() => router.push("/find-friends")} style={styles.iconButton}>
+                <Ionicons name="people" size={20} color={Colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push("/settings")} style={styles.iconButton}>
+                <Ionicons name="settings-sharp" size={20} color={Colors.white} />
               </TouchableOpacity>
             </View>
-          )}
-        </View>
+          </View>
 
-        {/* League */}
-        <View style={styles.leagueSection}>
-          <Text style={styles.sectionLabel}>CURRENT LEAGUE</Text>
-          <View style={styles.leagueCard}>
-            <Text style={styles.leagueEmoji}>{league.emoji}</Text>
-            <View style={styles.leagueInfo}>
-              <Text style={styles.leagueName}>{league.name}</Text>
-              <Text style={styles.leagueSteps}>
-                {userData.totalStepsAllTime.toLocaleString()} steps
-              </Text>
+          {/* User Profile Header - Compact */}
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarText}>{userData.avatar}</Text>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{userData.fullName}</Text>
+              <Text style={styles.memberSince}>Member since {memberSince}</Text>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
+      </View>
 
-        {/* Share Story */}
-        <View style={styles.shareSection}>
-          <Text style={styles.sectionLabel}>SHARE YOUR ACHIEVEMENT</Text>
-          <StoryTemplateGenerator
-            userStats={{
-              steps: userData.totalStepsAllTime,
-              distance: (userData.totalStepsAllTime * 0.0007).toFixed(1),
-              league: league.name,
-              rank: 23, // Could be fetched from leaderboard
-              name: userData.fullName.split(' ')[0],
-              avatar: userData.avatar,
-            }}
-          />
-        </View>
+      {/* Bottom White Sheet Overlap */}
+      <View style={styles.bottomSheet}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
 
-        {/* Badges */}
-        <View style={styles.badgesSection}>
-          <Text style={styles.sectionLabel}>BADGES</Text>
-          <View style={styles.badgesGrid}>
-            {allBadgesForDisplay.map((badge) => {
-              const isUnlocked = unlockedBadges.some((b) => b.id === badge.id);
-              return (
-                <TouchableOpacity
-                  key={badge.id}
-                  style={[
-                    styles.badgeItem,
-                    !isUnlocked && styles.badgeItemLocked,
-                  ]}
-                  onPress={() => {
-                    setSelectedBadge(badge);
-                    setShowBadgeModal(true);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.badgeItemEmoji}>{badge.emoji}</Text>
-                  {!isUnlocked && (
-                    <View style={styles.badgeLockOverlay}>
-                      <Text style={styles.lockIcon}>🔒</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+          {/* Quick Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{userData.totalStepsAllTime.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Total Steps</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <TouchableOpacity style={styles.statItem} onPress={() => setShowTreesModal(true)}>
+              <Text style={styles.statValue}>{trees}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={styles.statLabel}>Trees Planted</Text>
+                <Ionicons name="information-circle-outline" size={14} color={Colors.neonLime} />
+              </View>
+            </TouchableOpacity>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{userData.currentStreakDays || 0}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
           </View>
-          <Text style={styles.badgeCount}>
-            {unlockedBadges.length} / {BADGES.length} Unlocked
-          </Text>
-        </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          {/* League Banner */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>CURRENT LEAGUE</Text>
+            <View style={styles.leagueCard}>
+              <View style={styles.leagueIconContainer}>
+                <Text style={styles.leagueEmoji}>{league.emoji}</Text>
+              </View>
+              <View style={styles.leagueInfo}>
+                <Text style={styles.leagueName}>{league.name}</Text>
+                <Text style={styles.leagueDesc}>Keep walking to promote!</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </View>
+          </View>
+
+          {/* Friends Section - Horizontal */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>FRIENDS ({friends.length})</Text>
+              <TouchableOpacity onPress={() => router.push("/find-friends")}>
+                <Text style={styles.seeAllText}>Find Friends</Text>
+              </TouchableOpacity>
+            </View>
+
+            {friends.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendsList}>
+                {friends.map((friend: any) => (
+                  <TouchableOpacity key={friend.id} style={styles.friendItem}>
+                    <View style={styles.friendAvatar}>
+                      <Text style={styles.friendAvatarText}>{friend.avatar || '👤'}</Text>
+                    </View>
+                    <Text style={styles.friendName} numberOfLines={1}>{friend.fullName.split(' ')[0]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Add friends to compete together!</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Badges Grid */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>BADGES</Text>
+              <Text style={styles.seeAllText}>{unlockedBadges.length} Unlocked</Text>
+            </View>
+
+            <View style={styles.badgesGrid}>
+              {allBadgesForDisplay.map((badge) => {
+                const isUnlocked = unlockedBadges.some((b) => b.id === badge.id);
+                return (
+                  <TouchableOpacity
+                    key={badge.id}
+                    style={[styles.badgeItem, !isUnlocked && styles.badgeItemLocked]}
+                    onPress={() => {
+                      setSelectedBadge(badge);
+                      setShowBadgeModal(true);
+                    }}
+                  >
+                    <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                    {!isUnlocked && (
+                      <View style={styles.lockOverlay}>
+                        <Ionicons name="lock-closed" size={12} color={Colors.white} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          </View>
+
+          {/* Share Story */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>SHARE</Text>
+            <StoryTemplateGenerator
+              userStats={{
+                steps: userData.totalStepsAllTime,
+                distance: (userData.totalStepsAllTime * 0.0007).toFixed(1),
+                league: league.name,
+                rank: 23, // Placeholder until rank is fetched logic improved
+                name: userData.fullName.split(' ')[0],
+                avatar: userData.avatar,
+              }}
+            />
+          </View>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </View>
 
       {/* Modals */}
       <VirtualTreesModal
@@ -309,234 +301,282 @@ export default function ProfileScreen() {
         onClose={() => setShowBadgeModal(false)}
         userData={userData}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.darkGrey },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 20 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: { fontSize: 18, color: Colors.white, marginBottom: 24 },
-
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 32,
+  container: {
+    flex: 1,
+    backgroundColor: Colors.brandBlue,
   },
-  title: { fontSize: 36, fontWeight: "bold", color: Colors.white },
-  headerButtons: {
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+
+  // Top Section
+  topSection: {
+    backgroundColor: Colors.brandBlue,
+    paddingBottom: 40, // Space for overlap
+    zIndex: 1,
+    paddingHorizontal: 24,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 24,
+  },
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: Colors.white,
+    letterSpacing: -0.5,
+  },
+  headerActions: {
     flexDirection: 'row',
     gap: 12,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.black,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  iconButtonText: { fontSize: 22 },
 
-  profileSection: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-    marginBottom: 40,
+  // Profile Header in Top Section
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 10,
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.neonLime,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  avatar: { fontSize: 50 },
-  name: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: Colors.white,
-    marginBottom: 6,
-  },
-  memberSince: { fontSize: 14, color: Colors.lightGrey },
-
-  statsSection: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    marginBottom: 40,
-    gap: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.black,
-    borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 160,
-  },
-  statCardHighlight: { backgroundColor: Colors.neonLime },
-  statEmoji: { fontSize: 40, marginBottom: 12 },
-  statValue: {
+  avatarText: {
     fontSize: 32,
-    fontWeight: "bold",
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: Colors.white,
     marginBottom: 4,
   },
-  statValueHighlight: { color: Colors.black },
-  statLabel: {
+  memberSince: {
     fontSize: 13,
-    color: Colors.lightGrey,
-    textTransform: "uppercase",
+    color: 'rgba(255,255,255,0.7)',
+  },
+
+  // Bottom Sheet
+  bottomSheet: {
+    flex: 1,
+    backgroundColor: Colors.background, // White
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -32, // Overlap
+    overflow: "hidden", // Clip content to radius
+    zIndex: 2,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 0,
+    paddingBottom: 20,
+  },
+
+  // Stats Row
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.darkGrey, // Charcoal
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.2)', // Lighter divider
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.white,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: Colors.neonLime, // Lime label for pop
+    fontWeight: '700',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  infoButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoButtonText: { fontSize: 14 },
 
-  leagueSection: { paddingHorizontal: 24, marginBottom: 40 },
-  shareSection: { paddingHorizontal: 24, marginBottom: 40 },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: Colors.lightGrey,
-    letterSpacing: 1,
-    marginBottom: 12,
+  // Common Sections
+  sectionContainer: {
+    paddingHorizontal: 24,
+    marginTop: 32,
   },
-  leagueCard: {
-    backgroundColor: Colors.black,
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  leagueEmoji: { fontSize: 48 },
-  leagueInfo: { flex: 1 },
-  leagueName: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: Colors.white,
-    marginBottom: 4,
-  },
-  leagueSteps: { fontSize: 14, color: Colors.lightGrey },
-
-  friendsSection: { paddingHorizontal: 24, marginBottom: 40 },
-  friendsHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     marginBottom: 12,
   },
-  friendsCount: {
+  seeAllText: {
     fontSize: 13,
-    color: Colors.neonLime,
+    color: Colors.brandBlue,
     fontWeight: '600',
   },
-  friendsList: {
-    gap: 12,
-    paddingRight: 24,
+  emptyState: {
+    paddingVertical: 16,
   },
-  friendCard: {
-    backgroundColor: Colors.black,
-    borderRadius: 16,
-    padding: 16,
+  emptyStateText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    fontStyle: 'italic',
+  },
+
+  // League Card
+  leagueCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    width: 100,
+    backgroundColor: Colors.darkGrey, // Charcoal
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    gap: 16,
+    // Shadow
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  leagueIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.neonLime, // Lime border
+  },
+  leagueEmoji: {
+    fontSize: 24,
+  },
+  leagueInfo: {
+    flex: 1,
+  },
+  leagueName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.white, // White text
+    marginBottom: 2,
+  },
+  leagueDesc: {
+    fontSize: 12,
+    color: Colors.neonLime, // Lime text
+    fontWeight: '600',
+  },
+
+  // Friends List
+  friendsList: {
+    gap: 16,
+    paddingVertical: 4,
+  },
+  friendItem: {
+    alignItems: 'center',
+    width: 60,
   },
   friendAvatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.cardGrey,
+    backgroundColor: Colors.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   friendAvatarText: {
-    fontSize: 28,
+    fontSize: 24,
   },
   friendName: {
-    fontSize: 13,
-    color: Colors.white,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  emptyFriendsContainer: {
-    backgroundColor: Colors.black,
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyFriendsEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyFriendsText: {
-    fontSize: 16,
-    color: Colors.lightGrey,
-    marginBottom: 20,
-  },
-  addFriendsButton: {
-    backgroundColor: Colors.neonLime,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  addFriendsButtonText: {
-    color: Colors.black,
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
+    color: Colors.textPrimary,
+    fontWeight: '500',
   },
 
-  badgesSection: { paddingHorizontal: 24, marginBottom: 40 },
+  // Badges Grid
   badgesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 16,
   },
   badgeItem: {
-    width: "18%",
+    width: '30%', // Approx 3 columns
     aspectRatio: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.cardBackground,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  badgeItemLocked: { opacity: 0.4 },
-  badgeItemEmoji: { fontSize: 28 },
-  badgeLockOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+  badgeItemLocked: {
+    opacity: 0.5,
+    backgroundColor: Colors.border,
   },
-  lockIcon: { fontSize: 16 },
-  badgeCount: {
-    fontSize: 13,
-    color: Colors.lightGrey,
-    textAlign: "center",
+  badgeEmoji: {
+    fontSize: 32,
+  },
+  lockOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 8,
+    padding: 4,
   },
 });

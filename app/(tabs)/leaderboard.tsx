@@ -9,7 +9,6 @@ import {
   Dimensions,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -37,7 +36,7 @@ export default function LeaderboardScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const leagueListRefs = useRef<{ [key: string]: FlatList | null }>({});
 
   // Handle pull-to-refresh with rate limiting
   const onRefresh = async () => {
@@ -78,275 +77,217 @@ export default function LeaderboardScreen() {
   };
 
   const jumpToUserRank = () => {
-    if (userData && scrollViewRef.current) {
-      const rowHeight = 60;
-      const offset = (userData.rank - 1) * rowHeight;
-      scrollViewRef.current.scrollTo({ y: offset, animated: true });
+    if (userData && userLeague && leagueListRefs.current[userLeague.id]) {
+      // note: userData.rank is 1-based index.
+      const index = userData.rank - 1;
+
+      // Safety check
+      if (index >= 0) {
+        leagueListRefs.current[userLeague.id]?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
     }
   };
 
   // Loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.neonLime} />
-          <Text style={styles.loadingText}>Loading leaderboard...</Text>
+      <View style={styles.container}>
+        <View style={styles.topSection}>
+          <SafeAreaView edges={["top"]}>
+            <Text style={styles.headerTitle}>Leaderboard</Text>
+          </SafeAreaView>
         </View>
-      </SafeAreaView>
+        <View style={styles.bottomSheet}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.brandBlue} />
+            <Text style={styles.loadingText}>Loading leaderboard...</Text>
+          </View>
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>🏆 Leaderboard</Text>
-        <Text style={styles.subtitle}>Climb the leagues of Baku</Text>
+    <View style={styles.container}>
+      {/* Top Blue Section */}
+      <View style={styles.topSection}>
+        <SafeAreaView edges={["top"]}>
+          <Text style={styles.headerTitle}>Leaderboard</Text>
+          <Text style={styles.headerSubtitle}>Climb the leagues of Baku</Text>
+        </SafeAreaView>
       </View>
 
-      {/* Your Rank Card - Shows when data loaded */}
-      {userData && userLeague && (
-        <View style={styles.yourRankCard}>
-          <View style={styles.yourRankHeader}>
-            <View>
-              <Text style={styles.yourRankLabel}>Your League</Text>
-              <Text style={styles.yourRankLeague}>{userLeague.name}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.jumpButton}
-              onPress={jumpToUserRank}
-            >
-              <Ionicons name="locate" size={16} color={Colors.black} />
-              <Text style={styles.jumpButtonText}>Find Me</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.yourRankStats}>
-            <View style={styles.yourRankStat}>
-              <Text style={styles.yourRankStatLabel}>Rank</Text>
-              <Text style={styles.yourRankStatValue}>#{userData.rank}</Text>
-            </View>
-            <View style={styles.yourRankStat}>
-              <Text style={styles.yourRankStatLabel}>Steps</Text>
-              <Text style={styles.yourRankStatValue}>
-                {userData.steps.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.yourRankStat}>
-              <Text style={styles.yourRankStatLabel}>Status</Text>
-              <Text style={styles.yourRankStatValue}>
-                {userData.rank <= userLeague.promotionCount
-                  ? "⬆️"
-                  : userData.rank > 50 - userLeague.demotionCount
-                    ? "⬇️"
-                    : "✅"}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Bottom White Sheet Overlap */}
+      <View style={styles.bottomSheet}>
+        <View style={styles.sheetContent}>
+          {/* Your Rank Card - Hero Style */}
+          {userData && userLeague && (
+            <View style={styles.yourRankCard}>
+              {/* Status Banner */}
+              <View style={[
+                styles.rankStatusBanner,
+                userData.rank <= userLeague.promotionCount ? styles.statusPromoting :
+                  (userLeague.demotionCount > 0 && userData.rank > 50 - userLeague.demotionCount) ? styles.statusDemoting :
+                    styles.statusSafe
+              ]}>
+                <Text style={[
+                  styles.rankStatusText,
+                  userData.rank <= userLeague.promotionCount ? styles.textPromoting :
+                    (userLeague.demotionCount > 0 && userData.rank > 50 - userLeague.demotionCount) ? styles.textDemoting :
+                      styles.textSafe
+                ]}>
+                  {userData.rank <= userLeague.promotionCount ? "🔥 You are in the Promotion Zone!" :
+                    (userLeague.demotionCount > 0 && userData.rank > 50 - userLeague.demotionCount) ? "⚠️ Warning: Demotion Zone" :
+                      "✅ You are in the Safe Zone"}
+                </Text>
+              </View>
 
-      {/* League Dots Navigation */}
-      <View style={styles.dotsContainer}>
-        {leagues.map((league, index) => (
-          <TouchableOpacity
-            key={league.id}
-            onPress={() =>
-              flatListRef.current?.scrollToIndex({ index, animated: true })
-            }
-            style={styles.dotWrapper}
-          >
-            <View
-              style={[styles.dot, index === currentIndex && styles.dotActive]}
-            />
-            <Text
-              style={[
-                styles.dotLabel,
-                index === currentIndex && styles.dotLabelActive,
-              ]}
-            >
-              {league.name.split(" ")[0]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <View style={styles.yourRankContent}>
+                <View style={styles.yourRankMain}>
+                  <Text style={styles.yourRankLabel}>CURRENT RANK</Text>
+                  <View style={styles.rankBadgeRow}>
+                    <Text style={styles.yourRankValue}>#{userData.rank}</Text>
+                    <View style={styles.leagueBadge}>
+                      <Text style={styles.leagueBadgeText}>{userLeague.name}</Text>
+                    </View>
+                  </View>
+                </View>
 
-      {/* Horizontal Scrolling Leagues */}
-      <FlatList
-        ref={flatListRef}
-        data={leagues}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        decelerationRate="fast"
-        keyExtractor={(item) => item.id}
-        getItemLayout={(_, index) => ({
-          length: SCREEN_WIDTH,
-          offset: SCREEN_WIDTH * index,
-          index,
-        })}
-        renderItem={({ item }) => (
-          <LeagueCard
-            league={item}
-            scrollViewRef={scrollViewRef}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
+                <View style={styles.yourRankSteps}>
+                  <Text style={styles.yourRankLabel}>TOTAL STEPS</Text>
+                  <Text style={styles.stepsValue}>{userData.steps.toLocaleString()}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.findMeButton} onPress={jumpToUserRank} activeOpacity={0.8}>
+                <Text style={styles.findMeText}>Find Me in List</Text>
+                <Ionicons name="arrow-down-circle" size={18} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* League Navigation - Tabs Style */}
+          <View style={styles.tabsContainer}>
+            {leagues.map((league, index) => (
+              <TouchableOpacity
+                key={league.id}
+                onPress={() =>
+                  flatListRef.current?.scrollToIndex({ index, animated: true })
+                }
+                style={[styles.tabItem, index === currentIndex && styles.tabItemActive]}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    index === currentIndex && styles.tabLabelActive,
+                  ]}
+                >
+                  {league.name.split(" ")[0]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Horizontal Scrolling Leagues */}
+          <FlatList
+            ref={flatListRef}
+            data={leagues}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            decelerationRate="fast"
+            keyExtractor={(item) => item.id}
+            getItemLayout={(_, index) => ({
+              length: SCREEN_WIDTH,
+              offset: SCREEN_WIDTH * index,
+              index,
+            })}
+            renderItem={({ item }) => (
+              <LeagueView
+                league={item}
+                scrollViewRef={(ref: any) => {
+                  if (ref) leagueListRefs.current[item.id] = ref;
+                }}
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+              />
+            )}
           />
-        )}
-      />
-    </SafeAreaView>
+        </View>
+      </View>
+    </View>
   );
 }
 
-// Challenge Leaderboard View Component
-function ChallengeLeaderboardView({ challengeId, refreshing, onRefresh }: { challengeId: string, refreshing: boolean, onRefresh: () => void }) {
-  const { getChallengeLeaderboard } = useChallenges();
-  const [leaderboard, setLeaderboard] = useState<any>(null);
-
-  useEffect(() => {
-    const loadLeaderboard = async () => {
-      const data = await getChallengeLeaderboard(challengeId);
-      setLeaderboard(data);
-    };
-    loadLeaderboard();
-  }, [challengeId, getChallengeLeaderboard]);
-
-  if (!leaderboard) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.neonLime} />
-        <Text style={styles.loadingText}>Loading leaderboard...</Text>
-      </View>
-    );
-  }
-
-  const currentUser = leaderboard.users.find((u: any) => u.isCurrentUser);
-
+function LeagueView({ league, scrollViewRef, refreshing, onRefresh }: any) {
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.cardContent}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={Colors.neonLime}
-          colors={[Colors.neonLime]}
-        />
-      }
-      style={{ paddingHorizontal: 20 }}
-    >
-      {/* Challenge Leaderboard Header */}
-      <View style={styles.challengeHeader}>
-        <Text style={styles.challengeTitle}>Top Performers</Text>
-        <Text style={styles.challengeSubtitle}>
-          {leaderboard.users.length} participants
+    <View style={styles.leaguePage}>
+      <View style={styles.leagueInfoRow}>
+        <View style={styles.leagueTimer}>
+          <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+          <Text style={styles.leagueTimerText}>{getTimeUntilEndOfMonth()} left</Text>
+        </View>
+        <Text style={styles.leagueRulesText}>
+          Top {league.promotionCount} promote • Bottom {league.demotionCount} demote
         </Text>
       </View>
 
-      {/* Users List */}
-      <View style={styles.usersList}>
-        {leaderboard.users.map((user: any) => (
-          <View
-            key={user.userId}
-            style={[
-              styles.userRow,
-              user.isCurrentUser && styles.userRowHighlight,
-            ]}
-          >
-            <Text style={styles.userRank}>{user.rank}</Text>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{user.avatar}</Text>
-            </View>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user.name}
-              {user.isCurrentUser && " 👈"}
-            </Text>
-            <View style={styles.progressContainer}>
-              <Text style={styles.userProgress}>
-                {user.progressPercent}%
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={{ height: 100 }} />
-    </ScrollView>
-  );
-}
-
-function LeagueCard({ league, scrollViewRef, refreshing, onRefresh }: any) {
-  return (
-    <View style={styles.card}>
-      <ScrollView
+      <FlatList
         ref={scrollViewRef}
+        data={league.users}
+        keyExtractor={(item: any) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.cardContent}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.neonLime}
-            colors={[Colors.neonLime]}
+            tintColor={Colors.brandBlue}
+            colors={[Colors.brandBlue]}
           />
         }
-      >
-        {/* League Header with Timer */}
-        <View style={styles.leagueHeader}>
-          <View>
-            <Text style={styles.leagueName}>{league.name}</Text>
-            <Text style={styles.leagueSubtitle}>
-              Top {league.promotionCount} advance
-              {league.demotionCount > 0 &&
-                ` • Bottom ${league.demotionCount} demote`}
-            </Text>
-          </View>
-          <View style={styles.timerBadge}>
-            <Ionicons name="time-outline" size={14} color={Colors.neonLime} />
-            <Text style={styles.timerText}>
-              {getTimeUntilEndOfMonth()} left
-            </Text>
-          </View>
-        </View>
+        renderItem={({ item: user }) => {
+          const isPromotion = user.rank <= league.promotionCount;
+          const isDemotion = league.demotionCount > 0 && user.rank > 50 - league.demotionCount;
 
-        {/* Users List */}
-        <View style={styles.usersList}>
-          {league.users.map((user: any) => {
-            const isPromotion = user.rank <= league.promotionCount;
-            const isDemotion =
-              league.demotionCount > 0 && user.rank > 50 - league.demotionCount;
+          return (
+            <View style={[
+              styles.userRow,
+              user.isCurrentUser && styles.userRowHighlight
+            ]}>
+              <View style={styles.rankColumn}>
+                <Text style={[
+                  styles.userRank,
+                  isPromotion && styles.rankPromoting,
+                  isDemotion && styles.rankDemoting
+                ]}>
+                  {user.rank}
+                </Text>
+                {isPromotion && <Ionicons name="caret-up" size={10} color={Colors.success} />}
+                {isDemotion && <Ionicons name="caret-down" size={10} color={Colors.error} />}
+              </View>
 
-            return (
-              <View
-                key={user.id}
-                style={[
-                  styles.userRow,
-                  user.isCurrentUser && styles.userRowHighlight,
-                ]}
-              >
-                {/* Promotion/Demotion Border */}
-                {isPromotion && <View style={styles.promotionBorder} />}
-                {isDemotion && <View style={styles.demotionBorder} />}
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{user.avatar}</Text>
+              </View>
 
-                <Text style={styles.userRank}>{user.rank}</Text>
-                <Text style={styles.userAvatar}>{user.avatar}</Text>
+              <View style={styles.userInfo}>
                 <Text style={styles.userName} numberOfLines={1}>
                   {user.name}
-                  {user.isCurrentUser && " 👈"}
-                </Text>
-                <Text style={styles.userSteps}>
-                  {user.steps.toLocaleString()}
+                  {user.isCurrentUser && <Text style={styles.youIndicator}> (You)</Text>}
                 </Text>
               </View>
-            );
-          })}
-        </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+              <Text style={styles.userSteps}>
+                {user.steps.toLocaleString()}
+              </Text>
+            </View>
+          );
+        }}
+        ListFooterComponent={<View style={{ height: 100 }} />}
+      />
     </View>
   );
 }
@@ -354,7 +295,7 @@ function LeagueCard({ league, scrollViewRef, refreshing, onRefresh }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.darkGrey,
+    backgroundColor: Colors.brandBlue,
   },
 
   // Loading State
@@ -362,218 +303,282 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingTop: 100,
   },
   loadingText: {
     fontSize: 16,
-    color: Colors.lightGrey,
+    color: Colors.textSecondary,
     marginTop: 16,
   },
 
-  // Header
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+  // Top Section
+  topSection: {
+    backgroundColor: Colors.brandBlue,
+    paddingBottom: 40, // Space for overlap
+    zIndex: 1,
+    paddingHorizontal: 24,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: "800",
     color: Colors.white,
+    marginTop: 12,
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.lightGrey,
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "500",
+    marginBottom: 20,
+  },
+
+  // Bottom Sheet
+  bottomSheet: {
+    flex: 1,
+    backgroundColor: Colors.background, // White
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -32, // Overlap
+    overflow: "hidden", // Clip content to radius
+    zIndex: 2,
+  },
+  sheetContent: {
+    flex: 1,
+    paddingTop: 24,
   },
 
   // Your Rank Card
   yourRankCard: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: Colors.black,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: Colors.neonLime,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    // Shadow
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  yourRankHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+  rankStatusBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  statusPromoting: { backgroundColor: Colors.success + '20' }, // Light Green
+  statusDemoting: { backgroundColor: Colors.error + '15' }, // Light Red
+  statusSafe: { backgroundColor: Colors.brandBlue + '10' }, // Light Blue
+
+  rankStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  textPromoting: { color: Colors.success }, // Dark Green/Success Color
+  textDemoting: { color: Colors.error },
+  textSafe: { color: Colors.brandBlue },
+
+  yourRankContent: {
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  yourRankMain: {
+    gap: 4,
+  },
+  yourRankSteps: {
+    alignItems: 'flex-end',
+    gap: 4,
   },
   yourRankLabel: {
-    fontSize: 12,
-    color: Colors.lightGrey,
-    marginBottom: 4,
-  },
-  yourRankLeague: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.white,
-  },
-  jumpButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.neonLime,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  jumpButtonText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: Colors.black,
-  },
-  yourRankStats: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  yourRankStat: {
-    flex: 1,
-    alignItems: "center",
-  },
-  yourRankStatLabel: {
     fontSize: 11,
-    color: Colors.lightGrey,
-    marginBottom: 4,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 1,
   },
-  yourRankStatValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.neonLime,
+  yourRankValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    letterSpacing: -1,
   },
-
-  // Dots Navigation
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  dotWrapper: {
-    alignItems: "center",
-    gap: 4,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.cardGrey,
-  },
-  dotActive: {
-    backgroundColor: Colors.neonLime,
-  },
-  dotLabel: {
-    fontSize: 10,
-    color: Colors.lightGrey,
-  },
-  dotLabelActive: {
-    color: Colors.neonLime,
-    fontWeight: "bold",
-  },
-
-  // League Cards
-  card: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  cardContent: {
-    paddingBottom: 20,
-  },
-
-  leagueHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-  leagueName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Colors.white,
-    marginBottom: 4,
-  },
-  leagueSubtitle: {
-    fontSize: 12,
-    color: Colors.lightGrey,
-  },
-  timerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.black,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  timerText: {
-    fontSize: 12,
-    color: Colors.neonLime,
-    fontWeight: "600",
-  },
-
-  // Users List
-  usersList: {
+  rankBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
+  leagueBadge: {
+    backgroundColor: Colors.brandBlue,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  leagueBadgeText: {
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  stepsValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.brandBlue,
+  },
+
+  findMeButton: {
+    backgroundColor: Colors.textPrimary, // Black/Dark
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  findMeText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Tabs Navigation
+  tabsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    marginBottom: 0,
+  },
+  tabItem: {
+    paddingVertical: 12,
+    marginRight: 24,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: Colors.brandBlue,
+  },
+  tabLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  tabLabelActive: {
+    color: Colors.brandBlue,
+    fontWeight: "700",
+  },
+
+  // League View
+  leaguePage: {
+    width: SCREEN_WIDTH,
+    flex: 1,
+  },
+  leagueInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.cardBackground,
+  },
+  leagueTimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  leagueTimerText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  leagueRulesText: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+  },
+  listContent: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+
+  // User Row
   userRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.black,
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
-    position: "relative",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   userRowHighlight: {
-    backgroundColor: Colors.neonLime + "20",
-    borderWidth: 2,
-    borderColor: Colors.neonLime,
+    backgroundColor: Colors.brandBlue + '08', // Very subtle blue tint
+    marginHorizontal: -24,
+    paddingHorizontal: 24,
   },
 
-  promotionBorder: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: "#FFD700",
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+  rankColumn: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
   },
-  demotionBorder: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: "#FF4444",
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-  },
-
   userRank: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: Colors.lightGrey,
-    width: 28,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textSecondary,
   },
-  userAvatar: {
-    fontSize: 24,
+  rankPromoting: {
+    color: Colors.success,
+  },
+  rankDemoting: {
+    color: Colors.error,
+  },
+
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.cardBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 12,
+  },
+  avatarText: {
+    fontSize: 18,
+  },
+
+  userInfo: {
+    flex: 1,
   },
   userName: {
-    flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
-    color: Colors.white,
+    color: Colors.textPrimary,
   },
+  youIndicator: {
+    color: Colors.brandBlue,
+    fontWeight: 'bold',
+  },
+
   userSteps: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: Colors.neonLime,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
   },
 });
+
+// Challenge Leaderboard View Component (Preserved & Styled)
+function ChallengeLeaderboardView({ challengeId, refreshing, onRefresh }: { challengeId: string, refreshing: boolean, onRefresh: () => void }) {
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+
+  // Placeholder for future implementation matching new style
+  return (
+    <View style={styles.leaguePage}>
+      <View style={{ padding: 24, alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+        <Text style={{ color: Colors.textSecondary, fontSize: 16 }}>Challenge Leaderboard</Text>
+        <Text style={{ color: Colors.textTertiary, fontSize: 14, marginTop: 8 }}>Select a challenge to view active rankings</Text>
+      </View>
+    </View>
+  );
+}

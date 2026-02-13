@@ -163,19 +163,25 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: Colors.neonLime + '40',
+        borderColor: Colors.border,
         marginHorizontal: 20,
         marginBottom: 16,
+        // Shadow
+        shadowColor: Colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
     },
     selectorLabel: {
         fontSize: 15,
         fontWeight: '700',
-        color: Colors.white,
+        color: Colors.textPrimary,
         flex: 1,
         marginRight: 8,
     },
@@ -183,11 +189,11 @@ const styles = StyleSheet.create({
     // Modal Styles
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: Colors.darkGrey,
+        backgroundColor: Colors.white,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         paddingBottom: 40,
@@ -201,12 +207,12 @@ const styles = StyleSheet.create({
         paddingTop: 24,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.cardGrey,
+        borderBottomColor: Colors.border,
     },
     modalTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: Colors.textPrimary,
     },
 
     // Options
@@ -216,7 +222,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.cardBackground,
         marginHorizontal: 20,
         marginVertical: 6,
         borderRadius: 12,
@@ -224,8 +230,8 @@ const styles = StyleSheet.create({
         borderColor: 'transparent',
     },
     optionItemSelected: {
-        borderColor: Colors.neonLime,
-        backgroundColor: Colors.neonLime + '10',
+        borderColor: Colors.brandBlue,
+        backgroundColor: Colors.brandBlue + '10',
     },
     optionContent: {
         flexDirection: 'row',
@@ -243,7 +249,7 @@ const styles = StyleSheet.create({
     optionTitle: {
         fontSize: 15,
         fontWeight: '600',
-        color: Colors.white,
+        color: Colors.textPrimary,
         marginBottom: 2,
     },
     optionSubtitle: {
@@ -254,14 +260,14 @@ const styles = StyleSheet.create({
     // Divider
     divider: {
         height: 1,
-        backgroundColor: Colors.cardGrey,
+        backgroundColor: Colors.border,
         marginHorizontal: 20,
         marginVertical: 16,
     },
     sectionTitle: {
         fontSize: 13,
         fontWeight: '700',
-        color: Colors.lightGrey,
+        color: Colors.textSecondary,
         textTransform: 'uppercase',
         letterSpacing: 1,
         marginHorizontal: 20,
@@ -281,6 +287,6 @@ const styles = StyleSheet.create({
     },
     emptySubtext: {
         fontSize: 13,
-        color: Colors.lightGrey,
+        color: Colors.textTertiary,
     },
 });

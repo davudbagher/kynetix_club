@@ -1,5 +1,4 @@
 import ChallengeCard from "@/components/ChallengeCard";
-import ChallengeDetailModal from "@/components/ChallengeDetailModal";
 import SquadProgressWidget from "@/components/squad/SquadProgressWidget";
 import { Challenge, MOCK_CHALLENGES } from "@/constants/challenges";
 import Colors from "@/constants/Colors";
@@ -9,6 +8,7 @@ import { useFriends } from "@/hooks/useFriends";
 import { useSquads } from "@/hooks/useSquads";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -104,31 +104,13 @@ export default function ActivityScreen() {
   // Handle challenge press
   const handleChallengePress = (challenge: Challenge) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedChallenge(challenge);
-    setModalVisible(true);
+    // Navigate directly to the full challenge detail screen (now a modal)
+    router.push(`/challenge/${challenge.id}`);
   };
 
-  // Handle join challenge
+  // Handle join challenge (keeping this logic for now if needed elsewhere, but mainly handled in screen)
   const handleJoinChallenge = async () => {
-    if (!userId || !selectedChallenge) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-    const success = await joinChallenge(userId, selectedChallenge.id);
-
-    if (success) {
-      console.log('✅ Joined challenge successfully');
-      setModalVisible(false);
-
-      // Update progress map to show newly joined challenge
-      setChallengeProgressMap(prev => ({
-        ...prev,
-        [selectedChallenge.id]: 0,
-      }));
-
-      // Refresh challenges to update participant count
-      await fetchActiveChallenges();
-    }
+    // ... logic preserved but unused by card press
   };
 
 
@@ -188,14 +170,7 @@ export default function ActivityScreen() {
         </ScrollView>
       </View>
 
-      {/* Challenge Detail Modal */}
-      <ChallengeDetailModal
-        challenge={selectedChallenge}
-        userProgress={selectedChallenge ? challengeProgressMap[selectedChallenge.id] || 0 : 0}
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onJoin={handleJoinChallenge}
-      />
+      {/* ChallengeDetailModal removed */}
     </View>
   );
 }

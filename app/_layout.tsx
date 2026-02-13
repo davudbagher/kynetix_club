@@ -89,6 +89,15 @@ export default function RootLayout() {
             title: "Modal",
           }}
         />
+
+        {/* Challenge Detail Modal */}
+        <Stack.Screen
+          name="challenge/[id]"
+          options={{
+            presentation: "modal",
+            headerShown: false,
+          }}
+        />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>
